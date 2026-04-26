@@ -20,16 +20,37 @@ class EventModel {
   factory EventModel.fromJson(Map<String, dynamic> json) {
     return EventModel(
       id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
-      parentEventId: int.tryParse(json['parent_event']?.toString() ?? ''),
-      title: json['title']?.toString() ?? json['name']?.toString() ?? 'Unknown Event',
+      parentEventId: _extractId(
+        json['parent_event'] ?? json['parent_event_id'] ?? json['parent'],
+      ),
+      title:
+          json['title']?.toString() ??
+          json['name']?.toString() ??
+          'Unknown Event',
       description: json['description']?.toString() ?? '',
-      bannerImage: json['image_key']?.toString() ?? json['banner_image']?.toString() ?? json['image']?.toString(),
-      price: num.tryParse(json['price']?.toString() ?? json['fee']?.toString() ?? ''),
+      bannerImage:
+          json['image_key']?.toString() ??
+          json['banner_image']?.toString() ??
+          json['image']?.toString(),
+      price: num.tryParse(
+        json['price']?.toString() ?? json['fee']?.toString() ?? '',
+      ),
       date: json['date']?.toString() ?? json['start_time']?.toString(),
     );
   }
-}
 
+  static int? _extractId(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is Map) {
+      final rawId =
+          value['id'] ?? value['parent_event'] ?? value['parent_event_id'];
+      return int.tryParse(rawId?.toString() ?? '');
+    }
+    return int.tryParse(value.toString());
+  }
+}
 
 class EventDetails {
   final int id;
