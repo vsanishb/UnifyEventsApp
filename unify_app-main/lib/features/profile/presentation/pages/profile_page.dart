@@ -103,35 +103,48 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   void _showHelp(BuildContext context) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: const Color(0xFF13131D),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("HELP & SUPPORT", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w900, fontSize: 18)),
-            const SizedBox(height: 24),
-            _buildContact("ANISH", "+91 99999 99999"),
-            _buildContact("ANITEJ", "+91 99997 99997"),
-            const SizedBox(height: 24),
-          ],
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF13131D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("HELP & SUPPORT", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 0.5)),
+              const SizedBox(height: 24),
+              _buildContact("Anish B", "+91 99999 99999", "anish.b@unify.com"),
+              _buildContact("Anish S", "+91 99998 99998", "anish.s@unify.com"),
+              _buildContact("Anitej", "+91 99997 99997", "anitej@unify.com"),
+              _buildContact("Arushi", "+91 99996 99996", "arushi@unify.com"),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("CLOSE", style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFF1C7C), fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildContact(String name, String phone) {
+  Widget _buildContact(String name, String phone, String email) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(name, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
-          Text(phone, style: GoogleFonts.jetBrainsMono(color: const Color(0xFF00E5FF), fontSize: 14)),
+          Text(name, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 4),
+          Text(phone, style: GoogleFonts.plusJakartaSans(color: const Color(0xFF00E5FF), fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(email, style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 12)),
         ],
       ),
     );

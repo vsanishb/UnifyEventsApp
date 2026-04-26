@@ -122,7 +122,7 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Text(
                     "$_participantCount",
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
                       fontSize: 40,
                       fontWeight: FontWeight.w900,
@@ -142,7 +142,7 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
           else
             Text(
               "$_participantCount",
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.plusJakartaSans(
                 color: Colors.white,
                 fontSize: 40,
                 fontWeight: FontWeight.w900,
@@ -342,7 +342,7 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
               children: [
                 Text(
                   "${_formatTime(slot.startTime)} - ${_formatTime(slot.endTime)}",
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,

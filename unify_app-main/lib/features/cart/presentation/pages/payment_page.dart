@@ -133,7 +133,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: GoogleFonts.plusJakartaSans(color: isTotal ? Colors.white : Colors.white38, fontSize: isTotal ? 14 : 12, fontWeight: isTotal ? FontWeight.w900 : FontWeight.w700)),
-        Text(value, style: GoogleFonts.jetBrainsMono(color: isTotal ? const Color(0xFFFF1C7C) : Colors.white, fontSize: isTotal ? 20 : 14, fontWeight: FontWeight.bold)),
+        Text(value, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: isTotal ? 20 : 14, fontWeight: FontWeight.bold)),
       ],
     );
   }

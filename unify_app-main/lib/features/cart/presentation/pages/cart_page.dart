@@ -200,18 +200,21 @@ class CartPage extends ConsumerWidget {
         border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
       child: SafeArea(
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
                   "GRAND TOTAL ($itemCount ITEMS)",
                   style: GoogleFonts.plusJakartaSans(
                     color: Colors.white38,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
                   ),
                 ),
                 Text(
@@ -224,11 +227,13 @@ class CartPage extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 24),
-            Expanded(
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
               child: ElevatedButton(
                 onPressed: () => context.push('/checkout'),
-                child: const Text("PROCEED TO CHECKOUT"),
+                child: const Text("CONTINUE TO CHECKOUT"),
               ),
             ),
           ],

@@ -66,8 +66,8 @@ class BookingsPage extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("ORDER #${booking['id']}", style: GoogleFonts.jetBrainsMono(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
-                Text("₹${booking['total_amount']}", style: GoogleFonts.jetBrainsMono(color: const Color(0xFF39FF14), fontWeight: FontWeight.w900)),
+                Text("ORDER #${booking['id']}", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                Text("₹${booking['total_amount']}", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w900)),
               ],
             ),
           ),

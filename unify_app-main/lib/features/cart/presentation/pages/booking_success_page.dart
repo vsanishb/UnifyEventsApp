@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class BookingSuccessPage extends StatefulWidget {
   final String bookingId;
@@ -117,15 +118,26 @@ class _BookingSuccessPageState extends State<BookingSuccessPage>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'Your events are successfully booked.\nBooking ID: #${widget.bookingId}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          height: 1.5,
+                        RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                              height: 1.5,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Your events are successfully booked.\nBooking ID: '),
+                              TextSpan(
+                                text: '#${widget.bookingId}',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 48),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,

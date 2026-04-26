@@ -185,7 +185,7 @@ class EventsListPage extends ConsumerWidget {
                         children: [
                           Text(
                             _formatDate(event.date),
-                            style: GoogleFonts.jetBrainsMono(
+                            style: GoogleFonts.plusJakartaSans(
                               color: const Color(0xFF00E5FF),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -196,7 +196,7 @@ class EventsListPage extends ConsumerWidget {
                                 ? '₹${event.price}'
                                 : 'FREE',
                             style: GoogleFonts.plusJakartaSans(
-                              color: const Color(0xFFFF1C7C),
+                              color: Colors.white,
                               fontWeight: FontWeight.w800,
                             ),
                           ),

@@ -598,7 +598,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   const SizedBox(height: 8),
                   Text(
                     '#${item.bookingId}',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white54,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -850,7 +850,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: 8),
           Text(
             "₹${log['total_amount']}.00",
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.jetBrainsMono(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -1034,8 +1034,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(width: 8),
             Text(
               "₹${fullEvent.event.price ?? 0}",
-              style: GoogleFonts.plusJakartaSans(
-                color: Colors.white,
+              style: GoogleFonts.jetBrainsMono(
+                color: const Color(0xFFFF1C7C),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
