@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/domain/models/event_model.dart';
@@ -53,8 +54,14 @@ final cartDataProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
         );
         final slots = _parseList(sRes);
 
+        final resolvedPrice = resolveCartItemUnitPrice({
+          ...itemMap,
+          'full_event': fullEvent,
+        });
+
         return {
           ...itemMap,
+          'price': resolvedPrice,
           'full_event': fullEvent,
           'temp_bookings': participants,
           'temp_timeslots': slots,
@@ -102,38 +109,67 @@ class CartActionService {
     required List<Map<String, String>> participants,
     required int slotId,
   }) async {
-    // Get/Create Cart
-    final cartRes = await _dio.get('/cart/');
-    var cartId = (cartRes.data is List && cartRes.data.isNotEmpty)
-        ? cartRes.data[0]['id']
-        : cartRes.data['id'];
+    try {
+      // Get/Create Cart
+      final cartRes = await _dio.get('/cart/');
+      final cartMap = (cartRes.data is List && cartRes.data.isNotEmpty)
+          ? _asStringMap(cartRes.data[0])
+          : _asStringMap(cartRes.data);
+      var cartId = cartMap['id'];
 
-    if (cartId == null) {
-      final newCart = await _dio.post('/cart/');
-      cartId = newCart.data['id'];
+      if (cartId == null) {
+        final newCart = await _dio.post('/cart/');
+        cartId = _asStringMap(newCart.data)['id'];
+      }
+
+      // Guard against duplicate event in cart.
+      final existingRes = await _dio.get(
+        '/cartitems/',
+        queryParameters: {'cart': cartId},
+      );
+      final existingItems = _parseList(existingRes);
+      final alreadyInCart = existingItems.any((x) {
+        final item = _asStringMap(x);
+        return item['event']?.toString() == eventId;
+      });
+      if (alreadyInCart) {
+        throw AppException(
+          'Event already in cart. You can update participants/slot from the cart.',
+        );
+      }
+
+      // Add Item
+      final itemRes = await _dio.post(
+        '/cartitems/',
+        data: {
+          'cart': cartId,
+          'event': eventId,
+          'participants_count': participants.length,
+        },
+      );
+      final itemId = _asStringMap(itemRes.data)['id'];
+
+      // Add Participants
+      for (var p in participants) {
+        await _dio.post('/tempbookings/', data: {...p, 'cart_item': itemId});
+      }
+
+      // Add Slot
+      await _dio.post(
+        '/temp-timeslots/',
+        data: {'cart_item': itemId, 'slot': slotId},
+      );
+    } on DioException catch (e) {
+      final message = _extractDioErrorMessage(e).toLowerCase();
+      if (message.contains('already') &&
+          message.contains('cart') &&
+          message.contains('event')) {
+        throw AppException(
+          'Event already in cart. You can update participants/slot from the cart.',
+        );
+      }
+      throw AppException(_extractDioErrorMessage(e));
     }
-
-    // Add Item
-    final itemRes = await _dio.post(
-      '/cartitems/',
-      data: {
-        'cart': cartId,
-        'event': eventId,
-        'participants_count': participants.length,
-      },
-    );
-    final itemId = itemRes.data['id'];
-
-    // Add Participants
-    for (var p in participants) {
-      await _dio.post('/tempbookings/', data: {...p, 'cart_item': itemId});
-    }
-
-    // Add Slot
-    await _dio.post(
-      '/temp-timeslots/',
-      data: {'cart_item': itemId, 'slot': slotId},
-    );
   }
 
   Future<void> removeFromCart(String itemId) async {
@@ -177,4 +213,62 @@ Map<String, dynamic> _asStringMap(dynamic data) {
   if (data is Map<String, dynamic>) return data;
   if (data is Map) return Map<String, dynamic>.from(data);
   return <String, dynamic>{};
+}
+
+int resolveCartItemParticipantsCount(Map<String, dynamic> item) {
+  final raw = item['participants_count'];
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return int.tryParse(raw?.toString() ?? '') ?? 1;
+}
+
+num resolveCartItemUnitPrice(Map<String, dynamic> item) {
+  final directPrice =
+      _parseNum(item['price']) ??
+      _parseNum(item['event_price']) ??
+      _parseNum(item['amount']);
+  if (directPrice != null) return directPrice;
+
+  final fullEvent = item['full_event'];
+  if (fullEvent is FullEvent) {
+    return fullEvent.event.price ?? 0;
+  }
+
+  if (fullEvent is Map) {
+    final event = fullEvent['event'];
+    if (event is Map) {
+      final parsed = _parseNum(event['price']);
+      if (parsed != null) return parsed;
+    }
+  }
+
+  return 0;
+}
+
+num resolveCartItemTotal(Map<String, dynamic> item) {
+  final price = resolveCartItemUnitPrice(item);
+  final count = resolveCartItemParticipantsCount(item);
+  return price * count;
+}
+
+num? _parseNum(dynamic value) {
+  if (value is num) return value;
+  if (value == null) return null;
+  return num.tryParse(value.toString());
+}
+
+String _extractDioErrorMessage(DioException e) {
+  final data = e.response?.data;
+  if (data is Map) {
+    final map = _asStringMap(data);
+    final detail =
+        map['detail'] ??
+        map['error'] ??
+        map['message'] ??
+        map['non_field_errors'];
+    if (detail is List && detail.isNotEmpty) return detail.first.toString();
+    if (detail != null) return detail.toString();
+  }
+  if (data is String && data.trim().isNotEmpty) return data;
+  return e.message ?? 'Failed to add to cart';
 }

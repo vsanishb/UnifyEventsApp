@@ -16,7 +16,13 @@ class CartPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text("YOUR CART", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        title: Text(
+          "YOUR CART",
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+          ),
+        ),
         backgroundColor: Colors.black,
         elevation: 0,
       ),
@@ -28,31 +34,48 @@ class CartPage extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.white10),
+                  const Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 64,
+                    color: Colors.white10,
+                  ),
                   const SizedBox(height: 16),
-                  Text("CART IS EMPTY", style: GoogleFonts.plusJakartaSans(color: Colors.white24, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                  Text(
+                    "CART IS EMPTY",
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  ElevatedButton(onPressed: () => context.go('/home'), child: const Text("EXPLORE EVENTS")),
+                  ElevatedButton(
+                    onPressed: () => context.go('/home'),
+                    child: const Text("EXPLORE EVENTS"),
+                  ),
                 ],
               ),
             );
           }
 
-          num total = 0;
-          for (var item in items) {
-            total += (item['price'] ?? 0) * (item['participants_count'] ?? 1);
-          }
+          final normalizedItems = items.map(_toItemMap).toList();
+          final total = normalizedItems.fold<num>(
+            0,
+            (sum, item) => sum + resolveCartItemTotal(item),
+          );
+          final itemCount = normalizedItems.length;
 
           return Column(
             children: [
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(24),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) => _buildCartItem(context, ref, items[index]),
+                  itemCount: normalizedItems.length,
+                  itemBuilder: (context, index) =>
+                      _buildCartItem(context, ref, normalizedItems[index]),
                 ),
               ),
-              _buildCheckoutBar(context, total),
+              _buildCheckoutBar(context, total, itemCount),
             ],
           );
         },
@@ -62,11 +85,15 @@ class CartPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildCartItem(BuildContext context, WidgetRef ref, Map<String, dynamic> item) {
+  Widget _buildCartItem(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> item,
+  ) {
     final fullEvent = item['full_event'];
     final event = fullEvent?.event;
-    final pCount = item['participants_count'] ?? 1;
-    final price = item['price'] ?? 0;
+    final pCount = resolveCartItemParticipantsCount(item);
+    final price = resolveCartItemUnitPrice(item);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -80,23 +107,54 @@ class CartPage extends ConsumerWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: R2ImageWidget(imageKey: event?.bannerImage, width: 80, height: 80),
+            child: R2ImageWidget(
+              imageKey: event?.bannerImage,
+              width: 80,
+              height: 80,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(event?.title.toUpperCase() ?? "UNKNOWN EVENT", maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(
+                  event?.title.toUpperCase() ?? "UNKNOWN EVENT",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text("$pCount PARTICIPANTS", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                Text(
+                  "$pCount PARTICIPANTS",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text("₹${price * pCount}", style: GoogleFonts.jetBrainsMono(color: const Color(0xFFFF1C7C), fontWeight: FontWeight.w900, fontSize: 16)),
+                Text(
+                  "₹${price * pCount}",
+                  style: GoogleFonts.jetBrainsMono(
+                    color: const Color(0xFFFF1C7C),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Color(0xFF00E5FF), size: 20),
+            icon: const Icon(
+              Icons.edit_outlined,
+              color: Color(0xFF00E5FF),
+              size: 20,
+            ),
             onPressed: () {
               showModalBottomSheet(
                 context: context,
@@ -107,15 +165,21 @@ class CartPage extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-            onPressed: () => ref.read(cartActionProvider).removeFromCart(item['id'].toString()),
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.redAccent,
+              size: 20,
+            ),
+            onPressed: () => ref
+                .read(cartActionProvider)
+                .removeFromCart(item['id'].toString()),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCheckoutBar(BuildContext context, num total) {
+  Widget _buildCheckoutBar(BuildContext context, num total, int itemCount) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -129,8 +193,22 @@ class CartPage extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("GRAND TOTAL", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w800)),
-                Text("₹$total", style: GoogleFonts.jetBrainsMono(color: const Color(0xFF39FF14), fontSize: 24, fontWeight: FontWeight.w900)),
+                Text(
+                  "GRAND TOTAL ($itemCount ITEMS)",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  "₹$total",
+                  style: GoogleFonts.jetBrainsMono(
+                    color: const Color(0xFF39FF14),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
             const SizedBox(width: 24),
@@ -144,5 +222,11 @@ class CartPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Map<String, dynamic> _toItemMap(dynamic item) {
+    if (item is Map<String, dynamic>) return item;
+    if (item is Map) return Map<String, dynamic>.from(item);
+    return <String, dynamic>{};
   }
 }

@@ -14,34 +14,64 @@ class CheckoutPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text("CHECKOUT", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        title: Text(
+          "CHECKOUT",
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+          ),
+        ),
         backgroundColor: Colors.black,
         elevation: 0,
       ),
       body: cartAsync.when(
         data: (cartData) {
           final items = cartData['items'] as List<dynamic>? ?? [];
-          if (items.isEmpty) return const Center(child: Text("NO ITEMS TO CHECKOUT"));
+          if (items.isEmpty)
+            return const Center(child: Text("NO ITEMS TO CHECKOUT"));
 
-          num total = 0;
-          for (var item in items) {
-            total += (item['price'] ?? 0) * (item['participants_count'] ?? 1);
-          }
+          final normalizedItems = items.map(_toItemMap).toList();
+          final total = normalizedItems.fold<num>(
+            0,
+            (sum, item) => sum + resolveCartItemTotal(item),
+          );
+          final itemCount = normalizedItems.length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("ORDER SUMMARY", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 2)),
+                Text(
+                  "ORDER SUMMARY ($itemCount ITEMS)",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                ...items.map((item) => _buildSummaryItem(item)),
+                ...normalizedItems.map((item) => _buildSummaryItem(item)),
                 const Divider(color: Colors.white10, height: 48),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("TOTAL AMOUNT", style: GoogleFonts.plusJakartaSans(color: Colors.white70, fontWeight: FontWeight.bold)),
-                    Text("₹$total", style: GoogleFonts.jetBrainsMono(color: const Color(0xFF39FF14), fontSize: 24, fontWeight: FontWeight.w900)),
+                    Text(
+                      "TOTAL AMOUNT ($itemCount ITEMS)",
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "₹$total",
+                      style: GoogleFonts.jetBrainsMono(
+                        color: const Color(0xFF39FF14),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 48),
@@ -64,8 +94,8 @@ class CheckoutPage extends ConsumerWidget {
 
   Widget _buildSummaryItem(Map<String, dynamic> item) {
     final event = item['full_event']?.event;
-    final pCount = item['participants_count'] ?? 1;
-    final price = item['price'] ?? 0;
+    final pCount = resolveCartItemParticipantsCount(item);
+    final price = resolveCartItemUnitPrice(item);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -76,14 +106,38 @@ class CheckoutPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(event?.title.toUpperCase() ?? "UNKNOWN EVENT", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold)),
-                Text("$pCount × ₹$price", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 12)),
+                Text(
+                  event?.title.toUpperCase() ?? "UNKNOWN EVENT",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  "$pCount × ₹$price",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white38,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
-          Text("₹${price * pCount}", style: GoogleFonts.jetBrainsMono(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(
+            "₹${price * pCount}",
+            style: GoogleFonts.jetBrainsMono(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Map<String, dynamic> _toItemMap(dynamic item) {
+    if (item is Map<String, dynamic>) return item;
+    if (item is Map) return Map<String, dynamic>.from(item);
+    return <String, dynamic>{};
   }
 }
