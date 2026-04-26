@@ -740,7 +740,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ? '₹${fullEvent.event.price}'
                         : 'FREE',
                     style: GoogleFonts.plusJakartaSans(
-                      color: const Color(0xFFFF1C7C),
+                      color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -850,7 +850,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: 8),
           Text(
             "₹${log['total_amount']}.00",
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.plusJakartaSans(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -1034,8 +1034,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(width: 8),
             Text(
               "₹${fullEvent.event.price ?? 0}",
-              style: GoogleFonts.jetBrainsMono(
-                color: const Color(0xFFFF1C7C),
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),

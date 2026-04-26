@@ -66,8 +66,8 @@ class CheckoutPage extends ConsumerWidget {
                     ),
                     Text(
                       "₹$total",
-                      style: GoogleFonts.jetBrainsMono(
-                        color: const Color(0xFF39FF14),
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
                       ),
@@ -125,7 +125,7 @@ class CheckoutPage extends ConsumerWidget {
           ),
           Text(
             "₹${price * pCount}",
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.plusJakartaSans(
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),

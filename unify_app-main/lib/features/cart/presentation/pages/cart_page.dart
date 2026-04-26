@@ -140,8 +140,8 @@ class CartPage extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   "₹${price * pCount}",
-                  style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFFFF1C7C),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
                   ),
@@ -216,8 +216,8 @@ class CartPage extends ConsumerWidget {
                 ),
                 Text(
                   "₹$total",
-                  style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFF39FF14),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                   ),

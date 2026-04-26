@@ -150,7 +150,7 @@ class EventDetailPage extends ConsumerWidget {
                           fullEvent.event.price != null && fullEvent.event.price! > 0 
                             ? "₹${fullEvent.event.price}" 
                             : "FREE ACCESS",
-                          style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFF1C7C), fontSize: 20, fontWeight: FontWeight.w900),
+                          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
                         ),
                       ],
                     ),

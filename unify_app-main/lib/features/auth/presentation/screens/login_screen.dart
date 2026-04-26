@@ -20,6 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -84,6 +85,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const SizedBox(height: 32),
                     // Unified "UNIFY" Title Style
                     Center(
                       child: Column(
@@ -96,8 +98,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 'UNIFY',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 64,
-                                  fontWeight: FontWeight.w900,
-                                  color: const Color(0xFF00E5FF),
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade400,
                                   letterSpacing: 8,
                                   height: 1,
                                 ),
@@ -113,16 +115,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "EVENTS",
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              letterSpacing: 8,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white38,
-                            ),
                           ),
                         ],
                       ),
@@ -141,26 +133,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            "AUTHENTICATION_REQUIRED",
+                            "Sign In",
                             style: GoogleFonts.plusJakartaSans(
-                              color: const Color(0xFF00E5FF).withOpacity(0.6),
-                              fontSize: 10,
+                              color: Colors.grey.shade400,
+                              fontSize: 24,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 2,
+                              letterSpacing: 1,
                             ),
                           ),
                           const SizedBox(height: 24),
                           _buildTextField(
                             controller: usernameController,
-                            label: "USERNAME",
-                            icon: Icons.person_outline,
+                            label: "Email",
+                            hintText: "unify@gmail.com",
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           _buildTextField(
                             controller: passwordController,
-                            label: "PASSWORD",
-                            icon: Icons.lock_outline,
-                            isPassword: true,
+                            label: "Password",
+                            hintText: "••••••••••••",
+                            isPassword: _obscurePassword,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                color: Colors.grey.shade600,
+                                size: 22,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                           ),
                           const SizedBox(height: 24),
                           SizedBox(
@@ -176,7 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     },
                               child: authState.isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
-                                  : const Text("INITIALIZE SESSION"),
+                                  : const Text("Sign In"),
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -221,6 +225,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ],
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          Center(
+                            child: Text(
+                              "Or create a new account with Google",
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.grey.shade500,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -237,17 +252,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
-    required IconData icon,
     bool isPassword = false,
+    Widget? suffixIcon,
+    String? hintText,
   }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: isPassword,
-      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 16),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF00E5FF), size: 20),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.white.withOpacity(0.9),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: isPassword,
+          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 15),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: GoogleFonts.plusJakartaSans(color: Colors.white.withOpacity(0.2), fontSize: 15),
+            filled: true,
+            fillColor: Colors.transparent,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.15)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.15)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+            ),
+            suffixIcon: suffixIcon,
+          ),
+        ),
+      ],
     );
   }
 }

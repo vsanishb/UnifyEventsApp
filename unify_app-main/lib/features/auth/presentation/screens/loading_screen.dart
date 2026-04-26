@@ -270,8 +270,8 @@ class _LetterBox extends StatelessWidget {
         letter,
         style: GoogleFonts.plusJakartaSans(
           fontSize: _kFontSize,
-          fontWeight: FontWeight.w900,
-          color: const Color(0xFF00E5FF),
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade400,
           letterSpacing: _kLetterSpace,
           height: 1,
         ),
