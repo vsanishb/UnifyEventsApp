@@ -102,6 +102,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                           'assets/images/phaseshift.jpg',
                           '/events-list?type=phaseshift',
                         ),
+                        _buildFadeSeparator(
+                          padding: const EdgeInsets.only(
+                            left: 72,
+                            right: 12,
+                            bottom: 24,
+                          ),
+                        ),
                         _buildDomainItem(
                           context,
                           'UTSAV',
@@ -109,6 +116,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                           const Color(0xFFFF1C7C),
                           'assets/images/utsav.jpg',
                           '/events-list?type=utsav',
+                        ),
+                        _buildFadeSeparator(
+                          padding: const EdgeInsets.only(
+                            left: 72,
+                            right: 12,
+                            bottom: 24,
+                          ),
                         ),
                         _buildDomainItem(
                           context,
@@ -130,10 +144,81 @@ class _HomePageState extends ConsumerState<HomePage> {
               if (isSearching)
                 _buildSearchResults(eventsAsync)
               else ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: _buildFadeSeparator(),
+                  ),
+                ),
+
+                // UPCOMING EVENTS / SUGGESTED EVENTS
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                    child: bookingsAsync.when(
+                      data: (bookings) {
+                        final upcomingEvents = _extractUpcomingEvents(bookings);
+                        final hasBookings = upcomingEvents.isNotEmpty;
+                        final suggestedSection = _buildSuggestedEventsSection(
+                          eventsAsync,
+                          showHeader: hasBookings,
+                        );
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              hasBookings
+                                  ? 'YOUR UPCOMING EVENTS'
+                                  : 'SUGGESTED EVENTS',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              hasBookings
+                                  ? 'All of your booked tickets are shown below.'
+                                  : 'Pick from PhaseShift, Utsav, and Club events.',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white38,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (hasBookings) ...[
+                              ...upcomingEvents.map(_buildUpcomingEventCard),
+                              const SizedBox(height: 32),
+                              suggestedSection,
+                            ] else ...[
+                              suggestedSection,
+                            ],
+                          ],
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(top: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (e, _) => Text(
+                        'ERROR: $e',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 // RECENT LOGS
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -178,47 +263,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ),
                 ),
-
-                // AVAILABLE NODES
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
-                        child: Text(
-                          "AVAILABLE NODES",
-                          style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white38,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      eventsAsync.when(
-                        data: (allEvents) {
-                          if (allEvents.isEmpty) return const SizedBox();
-                          return SizedBox(
-                            height: 180,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              itemCount: allEvents.length,
-                              itemBuilder: (ctx, i) =>
-                                  _buildNodeCard(allEvents[i]),
-                            ),
-                          );
-                        },
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (e, _) => const SizedBox(),
-                      ),
-                    ],
-                  ),
-                ),
               ],
               const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
             ],
@@ -230,43 +274,60 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildSearchBar() {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFF13131D),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFFF1C7C).withOpacity(0.4),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: Color(0xFFFF1C7C), size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: GoogleFonts.plusJakartaSans(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
-              ),
-              decoration: InputDecoration(
-                hintText: "SEARCH EVENTS...",
-                hintStyle: GoogleFonts.plusJakartaSans(
-                  color: Colors.white24,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
-                ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 20),
-              ),
-            ),
+        color: const Color(0xFF14141B),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.32),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        style: GoogleFonts.plusJakartaSans(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        cursorColor: const Color(0xFFFF1C7C),
+        decoration: InputDecoration(
+          hintText: 'Search for events, seminars, hackathons...',
+          hintStyle: GoogleFonts.plusJakartaSans(
+            color: Colors.white38,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 22),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFadeSeparator({EdgeInsetsGeometry padding = EdgeInsets.zero}) {
+    return Padding(
+      padding: padding,
+      child: Container(
+        height: 1,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.transparent,
+              Colors.white.withOpacity(0.35),
+              Colors.transparent,
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -353,6 +414,289 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       ),
     );
+  }
+
+  List<_UpcomingEventCardData> _extractUpcomingEvents(List<dynamic> bookings) {
+    final cards = <_UpcomingEventCardData>[];
+
+    for (final booking in bookings) {
+      final bookingMap = _toMap(booking);
+      final bookedEvents = bookingMap['booked_events'] as List<dynamic>? ?? [];
+      for (final bookedEvent in bookedEvents) {
+        final bookedEventMap = _toMap(bookedEvent);
+        final participants =
+            bookedEventMap['participants'] as List<dynamic>? ?? [];
+        cards.add(
+          _UpcomingEventCardData(
+            eventName: bookedEventMap['event_name']?.toString() ?? 'Event',
+            slotInfo: bookedEventMap['slot_info']?.toString() ?? '',
+            ticketsCount: participants.isNotEmpty
+                ? participants.length
+                : int.tryParse(
+                        bookedEventMap['participants_count']?.toString() ?? '',
+                      ) ??
+                      1,
+            bookingId:
+                bookedEventMap['id']?.toString() ??
+                bookingMap['id']?.toString() ??
+                '',
+          ),
+        );
+      }
+    }
+
+    return cards;
+  }
+
+  Widget _buildUpcomingEventCard(_UpcomingEventCardData item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF13131D),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF1C7C), Color(0xFF00E5FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: const Icon(
+              Icons.confirmation_number_outlined,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.eventName.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.ticketsCount} TICKETS',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (item.slotInfo.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.slotInfo,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '#${item.bookingId}',
+            style: GoogleFonts.jetBrainsMono(
+              color: Colors.white24,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestedEventsSection(
+    AsyncValue<List<FullEvent>> eventsAsync, {
+    required bool showHeader,
+  }) {
+    return eventsAsync.when(
+      data: (allEvents) {
+        final phaseShift = _takeLimitedByCategory(allEvents, 'phaseshift', 2);
+        final utsav = _takeLimitedByCategory(allEvents, 'utsav', 2);
+        final club = _takeLimitedByCategory(allEvents, 'regular', 2);
+
+        if (phaseShift.isEmpty && utsav.isEmpty && club.isEmpty) {
+          return const SizedBox();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showHeader) ...[
+              Text(
+                'SUGGESTED EVENTS',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'A few picks from each event group.',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white38,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (phaseShift.isNotEmpty) ...[
+              _buildSuggestionGroupHeader('PHASE SHIFT'),
+              const SizedBox(height: 12),
+              ...phaseShift.map(_buildSuggestionCard),
+              const SizedBox(height: 18),
+            ],
+            if (utsav.isNotEmpty) ...[
+              _buildSuggestionGroupHeader('UTSAV'),
+              const SizedBox(height: 12),
+              ...utsav.map(_buildSuggestionCard),
+              const SizedBox(height: 18),
+            ],
+            if (club.isNotEmpty) ...[
+              _buildSuggestionGroupHeader('CLUB EVENTS'),
+              const SizedBox(height: 12),
+              ...club.map(_buildSuggestionCard),
+            ],
+          ],
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => const SizedBox(),
+    );
+  }
+
+  Widget _buildSuggestionGroupHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.plusJakartaSans(
+        color: Colors.white38,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1,
+      ),
+    );
+  }
+
+  Widget _buildSuggestionCard(FullEvent fullEvent) {
+    return GestureDetector(
+      onTap: () => context.push('/event-details/${fullEvent.event.id}'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF13131D),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white.withOpacity(0.04),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: R2ImageWidget(
+                imageKey: fullEvent.event.bannerImage,
+                height: 44,
+                width: 44,
+                borderRadius: 0,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fullEvent.event.title.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    fullEvent.event.price != null && fullEvent.event.price! > 0
+                        ? '₹${fullEvent.event.price}'
+                        : 'FREE',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFFFF1C7C),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white12,
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<FullEvent> _takeLimitedByCategory(
+    List<FullEvent> allEvents,
+    String category,
+    int limit,
+  ) {
+    final normalized = category.toLowerCase().replaceAll(' ', '');
+
+    bool matches(FullEvent event) {
+      final parentName = event.parent?.name.toLowerCase().replaceAll(' ', '');
+      if (normalized == 'phaseshift') {
+        return event.event.parentEventId == 1 || parentName == 'phaseshift';
+      }
+      if (normalized == 'utsav') {
+        return event.event.parentEventId == 2 || parentName == 'utsav';
+      }
+      return event.event.parentEventId != 1 && event.event.parentEventId != 2;
+    }
+
+    return allEvents.where(matches).take(limit).toList();
+  }
+
+  Map<String, dynamic> _toMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return <String, dynamic>{};
   }
 
   Widget _buildLogCard(Map<String, dynamic> log) {
@@ -598,4 +942,20 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
+
+  // Small model for rendering booked ticket summaries on the home page.
+}
+
+class _UpcomingEventCardData {
+  final String eventName;
+  final String slotInfo;
+  final int ticketsCount;
+  final String bookingId;
+
+  _UpcomingEventCardData({
+    required this.eventName,
+    required this.slotInfo,
+    required this.ticketsCount,
+    required this.bookingId,
+  });
 }
