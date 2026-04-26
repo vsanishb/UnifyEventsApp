@@ -170,9 +170,22 @@ class CartPage extends ConsumerWidget {
               color: Colors.redAccent,
               size: 20,
             ),
-            onPressed: () => ref
-                .read(cartActionProvider)
-                .removeFromCart(item['id'].toString()),
+            onPressed: () async {
+              try {
+                await ref
+                    .read(cartActionProvider)
+                    .removeFromCart(item['id'].toString());
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to remove item: $e'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              }
+            },
           ),
         ],
       ),

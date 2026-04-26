@@ -26,7 +26,8 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
     _participants = [];
     _deletedParticipants = [];
 
-    if (widget.item['temp_timeslots'] != null && (widget.item['temp_timeslots'] as List).isNotEmpty) {
+    if (widget.item['temp_timeslots'] != null &&
+        (widget.item['temp_timeslots'] as List).isNotEmpty) {
       _selectedSlotId = (widget.item['temp_timeslots'] as List).first['slot'];
     }
 
@@ -38,11 +39,15 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
     try {
       final temp = widget.item['temp_bookings'] as List? ?? [];
       setState(() {
-        _participants = temp.map((t) => {
-          'id': t['id'],
-          'name': TextEditingController(text: t['name'] ?? ''),
-          'email': TextEditingController(text: t['email'] ?? ''),
-        }).toList();
+        _participants = temp
+            .map(
+              (t) => {
+                'id': t['id'],
+                'name': TextEditingController(text: t['name'] ?? ''),
+                'email': TextEditingController(text: t['email'] ?? ''),
+              },
+            )
+            .toList();
         _adjustParticipantsSize();
       });
     } finally {
@@ -89,21 +94,38 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
         color: Color(0xFF13131D),
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(2)),
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("EDIT ITEM", style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-                IconButton(icon: const Icon(Icons.close, color: Colors.white38), onPressed: () => Navigator.pop(context)),
+                Text(
+                  "EDIT ITEM",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white38),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
           ),
@@ -122,11 +144,16 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
                   ),
                   const SizedBox(height: 32),
                   _buildSectionTitle("PARTICIPANTS"),
-                  ...List.generate(_participants.length, (i) => _participantForm(i)),
+                  ...List.generate(
+                    _participants.length,
+                    (i) => _participantForm(i),
+                  ),
                   const SizedBox(height: 32),
                   _buildSectionTitle("TIME SLOT"),
                   slotsAsync.when(
-                    data: (slots) => Column(children: slots.map((s) => _slotCard(s)).toList()),
+                    data: (slots) => Column(
+                      children: slots.map((s) => _slotCard(s)).toList(),
+                    ),
                     loading: () => const CircularProgressIndicator(),
                     error: (_, __) => const Text("Error loading slots"),
                   ),
@@ -141,7 +168,9 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
               height: 56,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _save,
-                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("SAVE CHANGES"),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("SAVE CHANGES"),
               ),
             ),
           ),
@@ -153,26 +182,53 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Text(title, style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 2)),
+      child: Text(
+        title,
+        style: GoogleFonts.plusJakartaSans(
+          color: Colors.white38,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 2,
+        ),
+      ),
     );
   }
 
   Widget _buildTeamPicker(dynamic constraint) {
     if (constraint == null) return const SizedBox();
-    if (constraint.fixed) return Text("${constraint.lowerLimit} PARTICIPANTS (FIXED)", style: GoogleFonts.plusJakartaSans(color: Colors.white70));
-    
+    if (constraint.fixed)
+      return Text(
+        "${constraint.lowerLimit} PARTICIPANTS (FIXED)",
+        style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+      );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _counterBtn(Icons.remove, () {
-          if (_count > constraint.lowerLimit) setState(() { _count--; _adjustParticipantsSize(); });
+          if (_count > constraint.lowerLimit)
+            setState(() {
+              _count--;
+              _adjustParticipantsSize();
+            });
         }),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text("$_count", style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
+          child: Text(
+            "$_count",
+            style: GoogleFonts.jetBrainsMono(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ),
         _counterBtn(Icons.add, () {
-          if (_count < constraint.upperLimit) setState(() { _count++; _adjustParticipantsSize(); });
+          if (_count < constraint.upperLimit)
+            setState(() {
+              _count++;
+              _adjustParticipantsSize();
+            });
         }),
       ],
     );
@@ -207,8 +263,14 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
         children: [
           TextFormField(
             controller: _participants[index]['name'],
-            style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 14),
-            decoration: const InputDecoration(labelText: "NAME", prefixIcon: Icon(Icons.person_outline, size: 18)),
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+            decoration: const InputDecoration(
+              labelText: "NAME",
+              prefixIcon: Icon(Icons.person_outline, size: 18),
+            ),
           ),
         ],
       ),
@@ -223,15 +285,33 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF1C7C).withOpacity(0.1) : Colors.white.withOpacity(0.02),
+          color: isSelected
+              ? const Color(0xFFFF1C7C).withOpacity(0.1)
+              : Colors.white.withOpacity(0.02),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? const Color(0xFFFF1C7C) : Colors.white.withOpacity(0.05)),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFFF1C7C)
+                : Colors.white.withOpacity(0.05),
+          ),
         ),
         child: Row(
           children: [
-            Text("${slot.startTime} - ${slot.endTime}", style: GoogleFonts.jetBrainsMono(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            Text(
+              "${slot.startTime} - ${slot.endTime}",
+              style: GoogleFonts.jetBrainsMono(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const Spacer(),
-            if (isSelected) const Icon(Icons.check_circle, color: Color(0xFFFF1C7C), size: 18),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: Color(0xFFFF1C7C),
+                size: 18,
+              ),
           ],
         ),
       ),
@@ -242,12 +322,68 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
     setState(() => _isLoading = true);
     try {
       final action = ref.read(cartActionProvider);
-      // Logic for saving (simplified for brevity, but matches your backend requirements)
-      // Note: In a real app we would call updateCartItem, updateParticipant, etc.
-      // But we can also just pop and invalidate for now if the user just wants the UI fixed.
-      // Actually, I'll keep the logic I had before if it worked.
+      final itemId = int.tryParse(widget.item['id']?.toString() ?? '0') ?? 0;
+      if (itemId == 0) {
+        throw Exception('Invalid cart item');
+      }
+
+      await action.updateCartItem(itemId, {'participants_count': _count});
+
+      for (final p in _participants) {
+        final name = (p['name'] as TextEditingController).text.trim();
+        final email = (p['email'] as TextEditingController).text.trim();
+        final pid = int.tryParse(p['id']?.toString() ?? '');
+
+        if (pid != null) {
+          await action.updateParticipant(pid, {'name': name, 'email': email});
+        } else {
+          await action.addParticipant({
+            'cart_item': itemId,
+            'name': name,
+            'email': email,
+            'phone': '',
+          });
+        }
+      }
+
+      for (final removed in _deletedParticipants) {
+        final pid = int.tryParse(removed['id']?.toString() ?? '');
+        if (pid != null) {
+          await action.removeParticipant(pid);
+        }
+      }
+
+      if (_selectedSlotId != null) {
+        final tempSlots = widget.item['temp_timeslots'] as List? ?? const [];
+        final existingSlot = tempSlots.isNotEmpty ? tempSlots.first : null;
+        final slotData = <String, dynamic>{
+          'slot': _selectedSlotId,
+          'cart_item': itemId,
+        };
+        if (existingSlot is Map && existingSlot['id'] != null) {
+          slotData['id'] = existingSlot['id'];
+        }
+        await action.updateTimeSlot(slotData);
+      }
+
       Navigator.pop(context);
-      ref.invalidate(cartDataProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cart item updated'),
+            backgroundColor: Color(0xFF39FF14),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save changes: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
     }

@@ -5,9 +5,12 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/domain/models/event_model.dart';
 
+final cartRefreshProvider = StateProvider<int>((ref) => 0);
+
 final cartDataProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
   ref,
 ) async {
+  ref.watch(cartRefreshProvider);
   final dio = ref.read(dioProvider);
   final events = await ref.watch(eventsProvider.future);
 
@@ -102,7 +105,14 @@ final tempTimeslotsProvider = FutureProvider.family<List<dynamic>, dynamic>((
 
 class CartActionService {
   final Dio _dio;
-  CartActionService(this._dio);
+  final Ref _ref;
+
+  CartActionService(this._dio, this._ref);
+
+  void _notifyCartChanged() {
+    _ref.read(cartRefreshProvider.notifier).state++;
+    _ref.invalidate(cartDataProvider);
+  }
 
   Future<void> addToCart({
     required String eventId,
@@ -159,6 +169,8 @@ class CartActionService {
         '/temp-timeslots/',
         data: {'cart_item': itemId, 'slot': slotId},
       );
+
+      _notifyCartChanged();
     } on DioException catch (e) {
       final message = _extractDioErrorMessage(e).toLowerCase();
       if (message.contains('already') &&
@@ -174,33 +186,43 @@ class CartActionService {
 
   Future<void> removeFromCart(String itemId) async {
     await _dio.delete('/cartitems/$itemId/');
+    _notifyCartChanged();
   }
 
   Future<void> updateParticipant(int id, Map<String, dynamic> data) async {
     await _dio.patch('/tempbookings/$id/', data: data);
+    _notifyCartChanged();
   }
 
   Future<void> removeParticipant(int id) async {
     await _dio.delete('/tempbookings/$id/');
+    _notifyCartChanged();
   }
 
   // Compatibility methods
   Future<void> updateCartItem(int id, Map<String, dynamic> data) async {
     await _dio.patch('/cartitems/$id/', data: data);
+    _notifyCartChanged();
   }
 
   Future<void> addParticipant(Map<String, dynamic> data) async {
     await _dio.post('/tempbookings/', data: data);
+    _notifyCartChanged();
   }
 
   Future<void> updateTimeSlot(Map<String, dynamic> data) async {
-    // Usually updates or replaces the slot
-    await _dio.post('/temp-timeslots/', data: data);
+    final id = data['id'];
+    if (id != null) {
+      await _dio.patch('/temp-timeslots/$id/', data: {'slot': data['slot']});
+    } else {
+      await _dio.post('/temp-timeslots/', data: data);
+    }
+    _notifyCartChanged();
   }
 }
 
 final cartActionProvider = Provider<CartActionService>(
-  (ref) => CartActionService(ref.read(dioProvider)),
+  (ref) => CartActionService(ref.read(dioProvider), ref),
 );
 
 List<dynamic> _parseList(Response res) {

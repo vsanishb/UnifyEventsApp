@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/errors/app_exception.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/models/event_model.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 
@@ -26,8 +27,9 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
   void initState() {
     super.initState();
     _participantCount = widget.fullEvent.constraint?.lowerLimit ?? 1;
+    final currentUserName = ref.read(authProvider).user?.username ?? '';
     // Pre-fill first participant if possible
-    _participants.add({'name': '', 'email': '', 'phone': ''});
+    _participants.add({'name': currentUserName, 'email': '', 'phone': ''});
   }
 
   void _next() {
@@ -241,6 +243,7 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
           ),
           const SizedBox(height: 16),
           TextFormField(
+            initialValue: _participants[index]['name'] ?? '',
             onChanged: (v) => _participants[index]['name'] = v,
             style: GoogleFonts.plusJakartaSans(color: Colors.white),
             decoration: const InputDecoration(
@@ -374,6 +377,7 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
             slotId: _selectedSlotId!,
           );
       if (mounted) {
+        ref.invalidate(cartDataProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
