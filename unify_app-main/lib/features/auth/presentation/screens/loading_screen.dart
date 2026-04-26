@@ -268,10 +268,10 @@ class _LetterBox extends StatelessWidget {
       opacity: visible ? 1.0 : 0.0,
       child: Text(
         letter,
-        style: GoogleFonts.sora(
+        style: GoogleFonts.plusJakartaSans(
           fontSize: _kFontSize,
           fontWeight: FontWeight.w900,
-          color: const Color(0xFFFF1C7C),
+          color: const Color(0xFF00E5FF),
           letterSpacing: _kLetterSpace,
           height: 1,
         ),

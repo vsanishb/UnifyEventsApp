@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/domain/models/event_model.dart';
 import '../../../../shared/widgets/r2_image_widget.dart';
@@ -11,8 +12,10 @@ class EventsListPage extends ConsumerWidget {
   const EventsListPage({super.key, required this.type});
 
   String get _title {
-    if (type == 'phaseshift') return 'PhaseShift Events';
-    if (type == 'utsav') return 'Utsav Events';
+    final normalizedType = type.toLowerCase().replaceAll(' ', '');
+    if (normalizedType == 'phaseshift') return 'PhaseShift Events';
+    if (normalizedType == 'utsav') return 'Utsav Events';
+    if (normalizedType == 'clubevents') return 'Club Events';
     return 'Regular Events';
   }
 
@@ -21,20 +24,21 @@ class EventsListPage extends ConsumerWidget {
     final filteredEventsAsync = ref.watch(filteredEventsProvider(type));
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          _title,
-          style: const TextStyle(
+          _title.toUpperCase(),
+          style: GoogleFonts.plusJakartaSans(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            shadows: [Shadow(color: Color(0xFF7C3AED), blurRadius: 10)],
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
           ),
         ),
       ),
@@ -42,8 +46,8 @@ class EventsListPage extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(filteredEventsProvider(type));
         },
-        color: const Color(0xFF7C3AED),
-        backgroundColor: const Color(0xFF1B1B26),
+        color: const Color(0xFFFF1C7C),
+        backgroundColor: Colors.black,
         child: filteredEventsAsync.when(
           data: (events) {
             if (events.isEmpty) {
@@ -63,7 +67,7 @@ class EventsListPage extends ConsumerWidget {
                         const SizedBox(height: 16),
                         Text(
                           'No events found for $_title',
-                          style: const TextStyle(
+                          style: GoogleFonts.plusJakartaSans(
                             color: Colors.white54,
                             fontSize: 16,
                           ),
@@ -87,7 +91,7 @@ class EventsListPage extends ConsumerWidget {
             );
           },
           loading: () => const Center(
-            child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
+            child: CircularProgressIndicator(color: Color(0xFFFF1C7C)),
           ),
           error: (err, stack) => SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -106,17 +110,16 @@ class EventsListPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        err.toString(),
+                        'Failed to load events. Network error.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white70),
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white70,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () =>
                             ref.invalidate(filteredEventsProvider(type)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                        ),
                         child: const Text("Retry"),
                       ),
                     ],
@@ -130,23 +133,17 @@ class EventsListPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildEventCard(BuildContext context, EventModel event) {
+  Widget _buildEventCard(BuildContext context, FullEvent fullEvent) {
+    final event = fullEvent.event;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1B26),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF7C3AED).withOpacity(0.15),
-            blurRadius: 15,
-            spreadRadius: 2,
-          ),
-        ],
+        color: const Color(0xFF13131D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -156,7 +153,7 @@ class EventsListPage extends ConsumerWidget {
               children: [
                 R2ImageWidget(
                   imageKey: event.bannerImage,
-                  height: 150,
+                  height: 160,
                   borderRadius: 0,
                 ),
                 Padding(
@@ -165,22 +162,45 @@ class EventsListPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        event.title,
-                        style: const TextStyle(
+                        event.title.toUpperCase(),
+                        style: GoogleFonts.plusJakartaSans(
                           color: Colors.white,
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
-                        event.description.length > 80
-                            ? '${event.description.substring(0, 80)}...'
-                            : event.description,
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 14,
+                        event.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white54,
+                          fontSize: 13,
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatDate(event.date),
+                            style: GoogleFonts.jetBrainsMono(
+                              color: const Color(0xFF00E5FF),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            event.price != null && event.price! > 0
+                                ? '₹${event.price}'
+                                : 'FREE',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFFFF1C7C),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -193,55 +213,27 @@ class EventsListPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSkeletonCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      height: 250,
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131D),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF2B2B36)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 120,
-            decoration: const BoxDecoration(
-              color: Color(0xFF0A0A0F),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 20,
-                  width: 200,
-                  color: const Color(0xFF0A0A0F),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 14,
-                  width: double.infinity,
-                  color: const Color(0xFF0A0A0F),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  height: 14,
-                  width: 150,
-                  color: const Color(0xFF0A0A0F),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return "TBA";
+    try {
+      final dt = DateTime.parse(dateStr).toLocal();
+      final months = [
+        'JAN',
+        'FEB',
+        'MAR',
+        'APR',
+        'MAY',
+        'JUN',
+        'JUL',
+        'AUG',
+        'SEP',
+        'OCT',
+        'NOV',
+        'DEC',
+      ];
+      return "${months[dt.month - 1]} ${dt.day.toString().padLeft(2, '0')}";
+    } catch (_) {
+      return "TBA";
+    }
   }
 }

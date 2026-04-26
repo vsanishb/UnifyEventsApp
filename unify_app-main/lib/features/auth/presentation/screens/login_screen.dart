@@ -15,8 +15,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
-  late AnimationController _pulseController;
-
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
@@ -28,13 +26,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1000),
     );
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
 
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
@@ -42,7 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
 
     _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
           CurvedAnimation(parent: _fadeController, curve: Curves.easeOutQuart),
         );
 
@@ -52,7 +45,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _pulseController.dispose();
     usernameController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -69,22 +61,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             backgroundColor: const Color(0xFFFF1C7C),
             content: Text(
               next.error!,
-              style: GoogleFonts.spaceMono(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.bold),
             ),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     });
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Uses global CyberGridBackground
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -97,277 +84,141 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Animated Unify Events Title
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return ShaderMask(
-                          shaderCallback: (bounds) => LinearGradient(
-                            colors: const [
-                              Color(0xFF00E5FF),
-                              Color(0xFFFF1C7C),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            stops: [
-                              0.0 + (_pulseController.value * 0.2),
-                              1.0 - (_pulseController.value * 0.2),
-                            ],
-                          ).createShader(bounds),
-                          child: Text(
-                            "UNIFY\nEVENTS",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 64,
-                              height: 0.9,
-                              letterSpacing: 6,
-                              color: Colors.white,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "SYSTEM_ACCESS",
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 12,
-                        letterSpacing: 4,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF00E5FF).withOpacity(0.8),
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-
-                    // Floating Glassmorphism Login Card
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, -5 + (_pulseController.value * 10)),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF00E5FF).withOpacity(
-                                    0.05 + (_pulseController.value * 0.05),
-                                  ),
-                                  blurRadius: 30,
-                                  spreadRadius: 5,
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(
-                                  sigmaX: 15,
-                                  sigmaY: 15,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(32),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF0A0A0F,
-                                    ).withOpacity(0.7),
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF00E5FF,
-                                      ).withOpacity(0.3),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: child,
+                    // Unified "UNIFY" Title Style
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'UNIFY',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 64,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF00E5FF),
+                                  letterSpacing: 8,
+                                  height: 1,
                                 ),
                               ),
+                              const SizedBox(width: 4),
+                              Container(
+                                width: 10,
+                                height: 10,
+                                margin: const EdgeInsets.only(top: 40),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFFFF1C7C),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "EVENTS",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              letterSpacing: 8,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white38,
                             ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 64),
+
+                    // Login Card (Clean style, no glassmorphism/shadows)
+                    Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF13131D),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _buildTextField(
-                            controller: usernameController,
-                            label: "IDENTIFIER",
-                            icon: Icons.person_outline,
+                          Text(
+                            "AUTHENTICATION_REQUIRED",
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFF00E5FF).withOpacity(0.6),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2,
+                            ),
                           ),
                           const SizedBox(height: 24),
                           _buildTextField(
+                            controller: usernameController,
+                            label: "USERNAME",
+                            icon: Icons.person_outline,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
                             controller: passwordController,
-                            label: "CREDENTIAL",
+                            label: "PASSWORD",
                             icon: Icons.lock_outline,
                             isPassword: true,
                           ),
-                          const SizedBox(height: 40),
-
-                          // Futuristic Login Button
-                          AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (context, child) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFF1C7C),
-                                      Color(0xFFB026FF),
-                                    ],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFFF1C7C)
-                                          .withOpacity(
-                                            0.4 +
-                                                (_pulseController.value * 0.2),
-                                          ),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(16),
-                                    splashColor: Colors.white.withOpacity(0.2),
-                                    onTap: authState.isLoading
-                                        ? null
-                                        : () {
-                                            FocusScope.of(context).unfocus();
-                                            ref
-                                                .read(authProvider.notifier)
-                                                .login(
-                                                  usernameController.text,
-                                                  passwordController.text,
-                                                );
-                                          },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 20,
-                                      ),
-                                      child: Center(
-                                        child: authState.isLoading
-                                            ? const SizedBox(
-                                                height: 24,
-                                                width: 24,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                      strokeWidth: 2.5,
-                                                    ),
-                                              )
-                                            : Text(
-                                                "INITIATE_SESSION",
-                                                style: GoogleFonts.spaceMono(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w900,
-                                                  letterSpacing: 2.0,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
                           const SizedBox(height: 24),
+                          SizedBox(
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: authState.isLoading
+                                  ? null
+                                  : () {
+                                      ref.read(authProvider.notifier).login(
+                                            usernameController.text,
+                                            passwordController.text,
+                                          );
+                                    },
+                              child: authState.isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text("INITIALIZE SESSION"),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
                           Row(
                             children: [
-                              Expanded(
-                                child: Container(
-                                  height: 1,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.transparent,
-                                        const Color(0xFF00E5FF).withOpacity(0.3),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              Expanded(child: Divider(color: Colors.white10)),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  "OR",
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white38,
-                                    fontSize: 12,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
+                                child: Text("OR", style: GoogleFonts.plusJakartaSans(color: Colors.white24, fontSize: 12)),
                               ),
-                              Expanded(
-                                child: Container(
-                                  height: 1,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        const Color(0xFF00E5FF).withOpacity(0.3),
-                                        Colors.transparent,
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              Expanded(child: Divider(color: Colors.white10)),
                             ],
                           ),
-                          const SizedBox(height: 24),
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
-                                width: 1.5,
-                              ),
-                              color: Colors.white.withOpacity(0.03),
+                          const SizedBox(height: 32),
+                          // Google Login Button
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: authState.isLoading
-                                    ? null
-                                    : () {
-                                        ref.read(authProvider.notifier).googleLogin();
-                                      },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Image.network(
-                                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                                        height: 20,
-                                        // Using a fallback or simpler method if SVG is an issue, 
-                                        // but typical Flutter apps handle this or use an icon.
-                                        // For now, I'll use a FontAwesome-like icon if available or just a placeholder if needed.
-                                        // Actually, I'll use a simple Icon for reliability if I can't guarantee SVG support.
-                                        errorBuilder: (context, error, stackTrace) => const Icon(
-                                          Icons.g_mobiledata,
-                                          color: Colors.white,
-                                          size: 28,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        "CONTINUE_WITH_GOOGLE",
-                                        style: GoogleFonts.spaceMono(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                    ],
+                            onPressed: authState.isLoading
+                                ? null
+                                : () => ref.read(authProvider.notifier).googleLogin(),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.network(
+                                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
+                                  height: 20,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, color: Colors.white, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  "Continue with Google",
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ],
@@ -392,36 +243,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return TextFormField(
       controller: controller,
       obscureText: isPassword,
-      style: GoogleFonts.spaceMono(
-        color: Colors.white,
-        fontSize: 16,
-        letterSpacing: 1.2,
-      ),
+      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 16),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.spaceMono(
-          color: Colors.cyan.withOpacity(0.6),
-          fontSize: 12,
-          letterSpacing: 2,
-        ),
-        prefixIcon: Icon(icon, color: const Color(0xFF00E5FF)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: const Color(0xFF00E5FF).withOpacity(0.15),
-            width: 1.5,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF00E5FF), width: 2.5),
-        ),
-        filled: true,
-        fillColor: Colors.black.withOpacity(0.3),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 20,
-          horizontal: 16,
-        ),
+        prefixIcon: Icon(icon, color: const Color(0xFF00E5FF), size: 20),
       ),
     );
   }

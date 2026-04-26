@@ -8,7 +8,7 @@ import '../../features/auth/presentation/screens/loading_screen.dart';
 import '../../features/auth/presentation/screens/set_username_screen.dart';
 import '../../features/auth/presentation/screens/set_password_screen.dart';
 import '../../features/home/presentation/pages/home_page.dart';
-import '../../features/events/presentation/pages/events_page.dart';
+// import '../../features/events/presentation/pages/events_page.dart'; // Removed as per request
 import '../../features/events/presentation/pages/events_list_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
 import '../../features/bookings/presentation/pages/bookings_page.dart';
@@ -135,14 +135,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/home',
                 builder: (context, state) => const HomePage(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/events',
-                builder: (context, state) => const EventsPage(),
               ),
             ],
           ),

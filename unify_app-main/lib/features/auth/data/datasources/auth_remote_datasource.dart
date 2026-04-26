@@ -29,20 +29,20 @@ class AuthRemoteDataSource {
 
   Future<Map<String, dynamic>> getCurrentUser() async {
     final response = await dio.get(ApiConstants.me);
-    return response.data;
+    return _asStringMap(response.data);
   }
 
   Future<void> setUsername(String username) async {
-    await dio.post(
-      ApiConstants.setUsername,
-      data: {"username": username},
-    );
+    await dio.post(ApiConstants.setUsername, data: {"username": username});
   }
 
   Future<void> setPassword(String password) async {
-    await dio.post(
-      ApiConstants.setPassword,
-      data: {"password": password},
-    );
+    await dio.post(ApiConstants.setPassword, data: {"password": password});
+  }
+
+  Map<String, dynamic> _asStringMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return <String, dynamic>{};
   }
 }

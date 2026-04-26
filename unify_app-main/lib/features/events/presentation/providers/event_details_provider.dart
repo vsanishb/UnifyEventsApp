@@ -12,13 +12,14 @@ final eventDetailsDataProvider =
           '/event-details/',
           queryParameters: {'event': eventId},
         );
-        if (response.data is List && response.data.isNotEmpty)
-          return response.data[0];
+        if (response.data is List && response.data.isNotEmpty) {
+          return _asStringMap(response.data[0]);
+        }
         if (response.data is Map) {
           if (response.data['results'] != null &&
               response.data['results'].isNotEmpty)
-            return response.data['results'][0];
-          return response.data;
+            return _asStringMap(response.data['results'][0]);
+          return _asStringMap(response.data);
         }
         return {};
       } catch (e) {
@@ -39,7 +40,7 @@ final constraintProvider = FutureProvider.family<ConstraintModel?, String>((
     print("Constraint API: ${res.data}");
 
     if (res.data is List && res.data.isNotEmpty) {
-      return ConstraintModel.fromJson(res.data[0]);
+      return ConstraintModel.fromJson(_asStringMap(res.data[0]));
     } else {
       return null;
     }
@@ -67,7 +68,7 @@ final slotsProvider = FutureProvider.family<List<SlotModel>, String>((
     else if (res.data is Map)
       data = res.data['results'] ?? [];
 
-    return data.map((x) => SlotModel.fromJson(x)).where((slot) {
+    return data.map((x) => SlotModel.fromJson(_asStringMap(x))).where((slot) {
       return (slot.availableParticipants != null &&
               slot.availableParticipants! > 0) ||
           slot.unlimitedParticipants;
@@ -155,3 +156,9 @@ class CartService {
 final cartServiceProvider = Provider<CartService>((ref) {
   return CartService(ref.read(dioProvider));
 });
+
+Map<String, dynamic> _asStringMap(dynamic data) {
+  if (data is Map<String, dynamic>) return data;
+  if (data is Map) return Map<String, dynamic>.from(data);
+  return <String, dynamic>{};
+}

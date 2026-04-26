@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../events/domain/models/event_model.dart';
-import '../../../events/domain/models/booking_models.dart';
-import '../providers/event_details_provider.dart';
 import '../providers/events_provider.dart';
 import '../../../../shared/widgets/r2_image_widget.dart';
 import '../widgets/add_to_cart_flow.dart';
@@ -15,315 +15,192 @@ class EventDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final eventList = ref.watch(eventsProvider).valueOrNull ?? [];
-    // Fallback if accessed directly
-    final baseEvent = eventList.firstWhere(
-      (e) => e.id.toString() == eventId,
-      orElse: () => EventModel(
-        id: int.tryParse(eventId) ?? 0,
-        title: 'Loading...',
-        description: '',
-      ),
-    );
-
-    final detailsAsync = ref.watch(eventDetailsDataProvider(eventId));
-    final constraintAsync = ref.watch(constraintProvider(eventId));
-    final slotsAsync = ref.watch(slotsProvider(eventId));
-
-    final isOrganiser = false; // We can check role via AuthState if needed.
+    final eventsAsync = ref.watch(eventsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Colors.transparent,
-            expandedHeight: 300,
-            pinned: true,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-                shadows: [Shadow(color: Colors.black, blurRadius: 10)],
-              ),
-              onPressed: () => context.pop(),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  R2ImageWidget(
-                    imageKey: baseEvent.bannerImage,
-                    height: 300,
-                    borderRadius: 0,
-                  ),
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black87,
-                          Colors.transparent,
-                          Color(0xFF0A0A0F),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    baseEvent.title,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
+      backgroundColor: Colors.black,
+      body: eventsAsync.when(
+        data: (events) {
+          final fullEvent = events.firstWhere(
+            (e) => e.event.id.toString() == eventId,
+            orElse: () => throw Exception("Event not found"),
+          );
+          final event = fullEvent.event;
+
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                backgroundColor: Colors.black,
+                expandedHeight: 300,
+                pinned: true,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => context.pop(),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
                     children: [
+                      R2ImageWidget(imageKey: event.bannerImage, height: 300, borderRadius: 0),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF7C3AED)),
-                        ),
-                        child: Text(
-                          baseEvent.price != null && baseEvent.price! > 0
-                              ? '\$${baseEvent.price}'
-                              : 'Free',
-                          style: const TextStyle(
-                            color: Color(0xFF38BDF8),
-                            fontWeight: FontWeight.bold,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.black87, Colors.transparent, Colors.black],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      constraintAsync.when(
-                        data: (c) {
-                          String text = "No rules";
-                          if (c != null) {
-                            if (c.bookingType == "single") {
-                              text = "Single (1 participant)";
-                            } else if (c.fixed) {
-                              text = "Team size: ${c.upperLimit}";
-                            } else {
-                              text =
-                                  "Team size: ${c.lowerLimit}-${c.upperLimit}";
-                            }
-                          }
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.pinkAccent.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.pinkAccent),
-                            ),
-                            child: Text(
-                              text,
-                              style: const TextStyle(
-                                color: Colors.pinkAccent,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          );
-                        },
-                        loading: () => const SizedBox(),
-                        error: (_, __) => const SizedBox(),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // Details Section
-                  detailsAsync.when(
-                    data: (details) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (details['venue'] != null) ...[
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                color: Colors.white54,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                details['venue'],
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title.toUpperCase(),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _buildTag('EVENT', const Color(0xFFFF1C7C)),
+                          const SizedBox(width: 8),
+                          _buildTag(event.date != null ? _formatDate(event.date) : 'TBA', const Color(0xFF00E5FF)),
                         ],
-                        if (details['date'] != null) ...[
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                color: Colors.white54,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                details['date'],
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                        const Text(
-                          'About',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        "DESCRIPTION",
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white38,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        event.description,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white70,
+                          fontSize: 15,
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      if (fullEvent.details?.rules != null) ...[
+                        Text(
+                          "RULES & REGULATIONS",
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white38,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         Text(
-                          details['description'] ?? baseEvent.description,
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 15,
+                          fullEvent.details!.rules!,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white70,
+                            fontSize: 14,
                             height: 1.5,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 32),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text("ERROR: $err")),
+      ),
+      bottomNavigationBar: eventsAsync.maybeWhen(
+        data: (events) {
+          final fullEvent = events.firstWhere((e) => e.event.id.toString() == eventId);
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF13131D),
+              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05))),
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("PRICE", style: GoogleFonts.plusJakartaSans(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w800)),
+                        Text(
+                          fullEvent.event.price != null && fullEvent.event.price! > 0 
+                            ? "₹${fullEvent.event.price}" 
+                            : "FREE ACCESS",
+                          style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFF1C7C), fontSize: 20, fontWeight: FontWeight.w900),
+                        ),
                       ],
                     ),
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20.0),
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF7C3AED),
-                        ),
-                      ),
-                    ),
-                    error: (_, __) => const Text(
-                      'Error loading details',
-                      style: TextStyle(color: Colors.redAccent),
-                    ),
                   ),
-
-                  // Slots Warning Section
-                  slotsAsync.when(
-                    data: (slots) {
-                      bool hasLowSlots = slots.any(
-                        (s) =>
-                            s.availableParticipants != null &&
-                            s.availableParticipants! <= 5 &&
-                            s.availableParticipants! > 0,
-                      );
-                      if (hasLowSlots) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 20),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.amber),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.amber,
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                'Few slots left — book soon!',
-                                style: TextStyle(
-                                  color: Colors.amber,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => AddToCartFlow(fullEvent: fullEvent),
                         );
-                      }
-                      return const SizedBox();
-                    },
-                    loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
+                      },
+                      child: const Text("BOOK NOW"),
+                    ),
                   ),
-
-                  const SizedBox(height: 100), // padding for bottom bar
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-      bottomSheet: Container(
-        padding: const EdgeInsets.all(20),
-        color: const Color(0xFF1B1B26),
-        child: SizedBox(
-          width: double.infinity,
-          height: 55,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            onPressed: isOrganiser
-                ? null
-                : () {
-                    final constraint = constraintAsync.valueOrNull;
-                    final slots = slotsAsync.valueOrNull ?? [];
-                    if (constraint == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Constraints not loaded yet'),
-                        ),
-                      );
-                      return;
-                    }
-                    AddToCartFlow.start(
-                      context,
-                      ref,
-                      baseEvent,
-                      constraint,
-                      slots,
-                    );
-                  },
-            child: const Text(
-              'Book Now',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
+          );
+        },
+        orElse: () => const SizedBox(),
       ),
     );
+  }
+
+  Widget _buildTag(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.plusJakartaSans(color: color, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1),
+      ),
+    );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return "TBA";
+    try {
+      final dt = DateTime.parse(dateStr).toLocal();
+      final months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      return "${months[dt.month - 1]} ${dt.day.toString().padLeft(2, '0')}";
+    } catch (_) { return "TBA"; }
   }
 }

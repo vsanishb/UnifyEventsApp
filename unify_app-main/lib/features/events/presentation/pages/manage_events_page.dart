@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../widgets/manage_event_card.dart';
 import '../providers/manage_events_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -15,133 +16,39 @@ class ManageEventsPage extends ConsumerWidget {
     final eventsAsync = ref.watch(manageEventsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06060A),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text("MANAGE EVENTS", style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+        backgroundColor: Colors.black,
+        elevation: 0,
+        actions: [
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFF1C7C)),
+              onPressed: () => ManageEventModals.showEventModal(context, ref),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(manageEventsProvider),
-        color: const Color(0xFF7C3AED),
-        backgroundColor: const Color(0xFF1B1B26),
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            SliverAppBar(
-              backgroundColor: const Color(0xFF06060A).withOpacity(0.9),
-              elevation: 0,
-              pinned: true,
-              expandedHeight: 120,
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
-                ),
-                title: const Text(
-                  'Manage Events',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+        color: const Color(0xFFFF1C7C),
+        backgroundColor: Colors.black,
+        child: eventsAsync.when(
+          data: (events) {
+            if (events.isEmpty) {
+              return Center(child: Text("NO EVENTS ASSIGNED", style: GoogleFonts.plusJakartaSans(color: Colors.white24, fontWeight: FontWeight.bold)));
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.all(24).copyWith(bottom: 120),
+              itemCount: events.length,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ManageEventCard(event: events[index], isAdmin: isAdmin),
               ),
-              actions: [
-                if (isAdmin)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Center(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                        ),
-                        onPressed: () =>
-                            ManageEventModals.showEventModal(context, ref),
-                        icon: const Icon(
-                          Icons.add,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                        label: const Text(
-                          'Add Event',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-
-            // Subtitle exactly mapping web requirement
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Text(
-                  'Here you can manage the structural architecture mapping directly to the endpoints.',
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-              ),
-            ),
-
-            const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
-
-            eventsAsync.when(
-              data: (events) {
-                if (events.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(40),
-                      child: Center(
-                        child: Text(
-                          "No events assigned to you.",
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ).copyWith(bottom: 120),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final event = events[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: ManageEventCard(event: event, isAdmin: isAdmin),
-                      );
-                    }, childCount: events.length),
-                  ),
-                );
-              },
-              loading: () => const SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 300,
-                  child: Center(
-                    child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
-                  ),
-                ),
-              ),
-              error: (err, _) => SliverToBoxAdapter(
-                child: Center(
-                  child: Text(
-                    "Failed to load: $err",
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ),
-              ),
-            ),
-          ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(child: Text("ERROR: $err", style: GoogleFonts.plusJakartaSans(color: Colors.white24))),
         ),
       ),
     );

@@ -16,22 +16,25 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
+class _HomePageState extends ConsumerState<HomePage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..forward();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
   }
 
   @override
   void dispose() {
-    _animController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -41,320 +44,182 @@ class _HomePageState extends ConsumerState<HomePage>
     final user = authState.user;
     final eventsAsync = ref.watch(eventsProvider);
     final bookingsAsync = ref.watch(myBookingsProvider);
+    final isSearching = _searchQuery.isNotEmpty;
 
     return Scaffold(
-      backgroundColor:
-          Colors.transparent, // Let the main_layout grid shine through
+      backgroundColor: Colors.black,
       body: SafeArea(
-        bottom: false,
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(eventsProvider);
             ref.invalidate(myBookingsProvider);
           },
-          color: const Color(0xFF00E5FF),
-          backgroundColor: const Color(0xFF1B1B26),
+          color: const Color(0xFFFF1C7C),
+          backgroundColor: Colors.black,
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // ── SYSTEM HEADER ──────────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'USER_DASHBOARD',
-                        style: GoogleFonts.spaceMono(
-                          color: Colors.white54,
-                          fontSize: 10,
-                          letterSpacing: 2.0,
-                          fontWeight: FontWeight.bold,
+                      if (!isSearching) ...[
+                        Row(
+                          children: [
+                            Text(
+                              "WELCOME ",
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            Text(
+                              (user?.username ?? "ANI").toUpperCase(),
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFFFF1C7C),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Welcome text & Avatar row horizontally centered
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'WELCOME, ',
-                                    style: GoogleFonts.bebasNeue(
-                                      color: Colors.white,
-                                      fontSize: 48,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        user?.username.toUpperCase() ?? "GUEST",
-                                    style: GoogleFonts.bebasNeue(
-                                      color: const Color(0xFFFF1C7C),
-                                      fontSize: 48,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Avatar
-                          Transform.translate(
-                            offset: const Offset(0, -7),
-                            child: Hero(
-                              tag: 'profile_avatar',
-                              child: GestureDetector(
-                                onTap: () => context.go('/profile'),
-                                child: Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF7C3AED,
-                                      ).withOpacity(0.5),
-                                      width: 2,
-                                    ),
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFF7C3AED),
-                                        Color(0xFFE81CFF),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF7C3AED,
-                                        ).withOpacity(0.3),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      (user?.username != null &&
-                                              user!.username.isNotEmpty)
-                                          ? user.username[0].toUpperCase()
-                                          : 'G',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        const SizedBox(height: 32),
+                        _buildSearchBar(),
+                        const SizedBox(height: 32),
+                        _buildDomainItem(
+                          context,
+                          'PHASE SHIFT',
+                          'TECH SYMPOSIUM',
+                          const Color(0xFF00E5FF),
+                          'assets/images/phaseshift.jpg',
+                          '/events-list?type=phaseshift',
+                        ),
+                        _buildDomainItem(
+                          context,
+                          'UTSAV',
+                          'CULTURAL FEST',
+                          const Color(0xFFFF1C7C),
+                          'assets/images/utsav.jpg',
+                          '/events-list?type=utsav',
+                        ),
+                        _buildDomainItem(
+                          context,
+                          'CLUB EVENTS',
+                          'STUDENT GUILDS',
+                          const Color(0xFF39FF14),
+                          null,
+                          '/events-list?type=regular',
+                          icon: Icons.school,
+                        ),
+                      ] else ...[
+                        _buildSearchBar(),
+                      ],
                     ],
                   ),
                 ),
               ),
 
-              // ── SELECT DOMAIN (QUICK ACTIONS) ──────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: Text(
-                    'SELECT DOMAIN',
-                    style: GoogleFonts.bebasNeue(
-                      color: Colors.white,
-                      fontSize: 28,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: _animController,
-                    curve: const Interval(0.0, 0.4),
-                  ),
+              if (isSearching)
+                _buildSearchResults(eventsAsync)
+              else ...[
+                // RECENT LOGS
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDomainCard(
-                          context,
-                          'PHASE SHIFT',
-                          'TECH SYMPOSIUM',
-                          [const Color(0xFF00E5FF), const Color(0xFF0055FF)],
-                          Icons.bolt,
-                          '/events-list?type=phaseshift',
+                        Text(
+                          "RECENT LOGS",
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white38,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
                         ),
-                        _buildDomainCard(
-                          context,
-                          'UTSAV',
-                          'CULTURAL FEST',
-                          [const Color(0xFFFF1C7C), const Color(0xFFFF8A00)],
-                          Icons.auto_awesome,
-                          '/events-list?type=utsav',
-                        ),
-                        _buildDomainCard(
-                          context,
-                          'CLUB EVENTS',
-                          'STUDENT GUILDS',
-                          [const Color(0xFF39FF14), const Color(0xFF00AA00)],
-                          Icons.group_work,
-                          '/events-list?type=regular',
+                        const SizedBox(height: 16),
+                        bookingsAsync.when(
+                          data: (logs) => logs.isEmpty
+                              ? Text(
+                                  "NO LOGS FOUND",
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white10,
+                                    fontSize: 12,
+                                  ),
+                                )
+                              : Column(
+                                  children: logs
+                                      .take(1)
+                                      .map((l) => _buildLogCard(l))
+                                      .toList(),
+                                ),
+                          loading: () => const SizedBox(
+                            height: 100,
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          error: (e, _) => Text(
+                            "ERROR: $e",
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ),
 
-              // ── RECENT LOGS (BOOKINGS) ─────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-                  child: Text(
-                    'RECENT LOGS',
-                    style: GoogleFonts.spaceMono(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-              ),
-
-              bookingsAsync.when(
-                data: (bookingsList) {
-                  if (bookingsList.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                // AVAILABLE NODES
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
                         child: Text(
-                          "NO LOGS FOUND. INITIALIZE A TRANSFER.",
-                          style: GoogleFonts.spaceMono(
+                          "AVAILABLE NODES",
+                          style: GoogleFonts.plusJakartaSans(
                             color: Colors.white38,
-                            fontSize: 12,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
                           ),
                         ),
                       ),
-                    );
-                  }
-                  final recent = bookingsList.take(2).toList();
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final item = recent[index];
-                        return FadeTransition(
-                          opacity: CurvedAnimation(
-                            parent: _animController,
-                            curve: const Interval(0.4, 0.8),
-                          ),
-                          child: _buildLogCard(context, item),
-                        );
-                      }, childCount: recent.length),
-                    ),
-                  );
-                },
-                loading: () => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Center(
-                      child: CircularProgressIndicator(color: const Color(0xFF7C3AED)),
-                    ),
-                  ),
-                ),
-                error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
-              ),
-
-              // ── AVAILABLE NODES (EVENTS) ───────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-                  child: Text(
-                    'AVAILABLE NODES',
-                    style: GoogleFonts.spaceMono(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: _animController,
-                    curve: const Interval(0.2, 0.6),
-                  ),
-                  child: SlideTransition(
-                    position:
-                        Tween<Offset>(
-                          begin: const Offset(0.1, 0),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: _animController,
-                            curve: Curves.easeOut,
-                          ),
-                        ),
-                    child: SizedBox(
-                      height: 180,
-                      child: eventsAsync.when(
-                        data: (events) {
-                          if (events.isEmpty)
-                            return Center(
-                              child: Text(
-                                "NO NODES OBTAINED.",
-                                style: GoogleFonts.spaceMono(
-                                  color: Colors.white38,
-                                ),
+                      eventsAsync.when(
+                        data: (allEvents) {
+                          if (allEvents.isEmpty) return const SizedBox();
+                          return SizedBox(
+                            height: 180,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
                               ),
-                            );
-                          return ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: events.length > 5 ? 5 : events.length,
-                            itemBuilder: (context, index) {
-                              return _buildNodeTicket(context, events[index]);
-                            },
+                              itemCount: allEvents.length,
+                              itemBuilder: (ctx, i) =>
+                                  _buildNodeCard(allEvents[i]),
+                            ),
                           );
                         },
-                        loading: () => Center(
-                          child: CircularProgressIndicator(
-                            color: const Color(0xFF7C3AED),
-                          ),
-                        ),
-                        error: (err, stack) => Center(
-                          child: Text(
-                            'ERROR_CODE: $err',
-                            style: GoogleFonts.spaceMono(
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                        ),
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => const SizedBox(),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              ),
-
-              // Padding for bottom nav bar
+              ],
               const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
             ],
           ),
@@ -363,161 +228,113 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _buildDomainCard(
-    BuildContext context,
-    String title,
-    String subtitle,
-    List<Color> gradientColors,
-    IconData icon,
-    String route,
-  ) {
-    return GestureDetector(
-      onTap: () => context.push(route),
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF13131D),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
-          boxShadow: [
-            BoxShadow(
-              color: gradientColors.first.withOpacity(0.08),
-              blurRadius: 15,
-              spreadRadius: -5,
-            ),
-          ],
+  Widget _buildSearchBar() {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF13131D),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFFF1C7C).withOpacity(0.4),
+          width: 1.5,
         ),
-        child: Row(
-          children: [
-            // Glowing Icon
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  colors: gradientColors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: Color(0xFFFF1C7C), size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
+              ),
+              decoration: InputDecoration(
+                hintText: "SEARCH EVENTS...",
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  color: Colors.white24,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradientColors.first.withOpacity(0.5),
-                    blurRadius: 15,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-
-            const SizedBox(width: 16),
-
-            // Text Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.bebasNeue(
-                      color: Colors.white,
-                      fontSize: 24,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.spaceMono(
-                      color: gradientColors.first,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 20),
               ),
             ),
-
-            // Enter Arrow Button
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: gradientColors.first.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: gradientColors.first,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLogCard(BuildContext context, Map<String, dynamic> item) {
+  Widget _buildDomainItem(
+    BuildContext context,
+    String title,
+    String subtitle,
+    Color color,
+    String? assetPath,
+    String route, {
+    IconData? icon,
+  }) {
     return GestureDetector(
-      onTap: () {
-        if (item['id'] != null) context.push('/ticket/${item['id']}');
-      },
+      onTap: () => context.push(route),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFF4A0024).withOpacity(0.8),
-              const Color(0xFF1B0014).withOpacity(0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: const Color(0xFFFF1C7C).withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        margin: const EdgeInsets.only(bottom: 32),
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF13131D),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: assetPath != null
+                  ? Image.asset(
+                      assetPath,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        icon ?? Icons.event,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    )
+                  : Icon(icon ?? Icons.event, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 20),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'ID_${item['id'] ?? 'XXX'}',
-                  style: GoogleFonts.spaceMono(
-                    color: const Color(0xFFFF1C7C),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
                   ),
                 ),
                 Text(
-                  '4/14/2026', // Ideally format timestamp from item
-                  style: GoogleFonts.spaceMono(
-                    color: Colors.white38,
-                    fontSize: 10,
+                  subtitle,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'TRANSFER CONFIRMED',
-              style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '₹${item['line_total']?.toStringAsFixed(2) ?? '0.00'}',
-              style: GoogleFonts.spaceMono(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            const Spacer(),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white12,
+              size: 16,
             ),
           ],
         ),
@@ -525,182 +342,242 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _buildNodeTicket(BuildContext context, EventModel event) {
+  Widget _buildLogCard(Map<String, dynamic> log) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFF3D081E), const Color(0xFF13131D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.03)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "ID_${log['id']}",
+                style: GoogleFonts.jetBrainsMono(
+                  color: const Color(0xFFFF1C7C).withOpacity(0.6),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                "4/14/2026",
+                style: GoogleFonts.jetBrainsMono(
+                  color: Colors.white24,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "TRANSFER CONFIRMED",
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "₹${log['total_amount']}.00",
+            style: GoogleFonts.jetBrainsMono(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNodeCard(FullEvent fullEvent) {
     return GestureDetector(
-      onTap: () => context.push('/event-details/${event.id}'),
+      onTap: () => context.push('/event-details/${fullEvent.event.id}'),
       child: Container(
-        width: 320,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        clipBehavior: Clip.antiAlias,
+        width: 300,
+        margin: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
           color: const Color(0xFF13131D),
           borderRadius: BorderRadius.circular(16),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              R2ImageWidget(
+                imageKey: fullEvent.event.bannerImage,
+                height: double.infinity,
+                width: double.infinity,
+                borderRadius: 0,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.black, Colors.transparent],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.confirmation_num_outlined,
+                          color: Color(0xFFFF1C7C),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "EVENT ACCESS TOKEN",
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          "VALUE",
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white30,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      fullEvent.event.title.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(AsyncValue<List<FullEvent>> eventsAsync) {
+    return eventsAsync.when(
+      data: (events) {
+        final filtered = events
+            .where((e) => e.event.title.toLowerCase().contains(_searchQuery))
+            .toList();
+        if (filtered.isEmpty)
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Text(
+                  "NO NODES FOUND",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white24),
+                ),
+              ),
+            ),
+          );
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildSearchItem(filtered[i]),
+              ),
+              childCount: filtered.length,
+            ),
+          ),
+        );
+      },
+      loading: () => const SliverToBoxAdapter(
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) =>
+          SliverToBoxAdapter(child: Center(child: Text("ERROR: $e"))),
+    );
+  }
+
+  Widget _buildSearchItem(FullEvent fullEvent) {
+    return GestureDetector(
+      onTap: () => context.push('/event-details/${fullEvent.event.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF13131D),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
         ),
         child: Row(
           children: [
-            // Left Main Section
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: R2ImageWidget(
+                imageKey: fullEvent.event.bannerImage,
+                width: 60,
+                height: 60,
+                borderRadius: 0,
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
-              flex: 7,
-              child: Stack(
-                fit: StackFit.expand,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Dimmed Background image
-                  Opacity(
-                    opacity: 0.3,
-                    child: R2ImageWidget(
-                      imageKey: event.bannerImage,
-                      height: double.infinity,
-                      borderRadius: 0,
+                  Text(
+                    fullEvent.event.title.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.confirmation_num_outlined,
-                              size: 14,
-                              color: Color(0xFFFF1C7C),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'EVENT ACCESS TOKEN',
-                              style: GoogleFonts.spaceMono(
-                                color: Colors.white,
-                                fontSize: 10,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          event.title.toUpperCase(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.bebasNeue(
-                            color: Colors.white,
-                            fontSize: 32,
-                            height: 1.1,
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'STATUS',
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white38,
-                                    fontSize: 8,
-                                  ),
-                                ),
-                                Text(
-                                  'VERIFIED_ENTRY',
-                                  style: GoogleFonts.spaceMono(
-                                    color: const Color(0xFF39FF14),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'NODE_REF',
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white38,
-                                    fontSize: 8,
-                                  ),
-                                ),
-                                Text(
-                                  '0X-EVT-${event.id}',
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+                  Text(
+                    fullEvent.event.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white38,
+                      fontSize: 10,
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Dashed Divider
-            Container(
-              width: 1,
-              child: Flex(
-                direction: Axis.vertical,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(
-                  20,
-                  (_) => Container(width: 1, height: 4, color: Colors.white12),
-                ),
-              ),
-            ),
-
-            // Right Stub Section
-            Expanded(
-              flex: 3,
-              child: Container(
-                color: const Color(0xFF1E1E2C).withOpacity(0.5),
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'VALUE',
-                      style: GoogleFonts.spaceMono(
-                        color: Colors.white38,
-                        fontSize: 10,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      event.price != null && event.price! > 0
-                          ? '₹${event.price}'
-                          : 'FREE',
-                      style: GoogleFonts.bebasNeue(
-                        color: Colors.white,
-                        fontSize: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white54),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        'CLAIM SEAT',
-                        style: GoogleFonts.spaceMono(
-                          color: Colors.white,
-                          fontSize: 8,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(width: 8),
+            Text(
+              "₹${fullEvent.event.price ?? 0}",
+              style: GoogleFonts.jetBrainsMono(
+                color: const Color(0xFFFF1C7C),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],

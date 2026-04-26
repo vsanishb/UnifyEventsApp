@@ -24,17 +24,20 @@ final myBookingsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async
     // Save to Hive
     await box.clear(); // Clear old cache to avoid stale tickets
     for (var booking in dataList) {
-      final bookedEvents = booking['booked_events'] as List<dynamic>? ?? [];
+      final bMap = Map<String, dynamic>.from(booking);
+      final bookedEvents = bMap['booked_events'] as List<dynamic>? ?? [];
       for (var bEvent in bookedEvents) {
-        final participants = bEvent['participants'] as List<dynamic>? ?? [];
+        final beMap = Map<String, dynamic>.from(bEvent);
+        final participants = beMap['participants'] as List<dynamic>? ?? [];
         for (var p in participants) {
+          final pMap = Map<String, dynamic>.from(p);
           final ticket = CachedTicket(
-            participantId: p['id']?.toString() ?? '',
-            name: p['name']?.toString() ?? 'Attendee',
-            eventName: bEvent['event_name']?.toString() ?? 'Event',
-            slot: bEvent['slot_info']?.toString() ?? '',
-            qrToken: p['qr_token']?.toString() ?? '',
-            isCheckedIn: p['checked_in'] == true,
+            participantId: pMap['id']?.toString() ?? '',
+            name: pMap['name']?.toString() ?? 'Attendee',
+            eventName: beMap['event_name']?.toString() ?? 'Event',
+            slot: beMap['slot_info']?.toString() ?? '',
+            qrToken: pMap['qr_token']?.toString() ?? '',
+            isCheckedIn: pMap['checked_in'] == true,
             cachedAt: DateTime.now(),
           );
           await box.add(ticket);
