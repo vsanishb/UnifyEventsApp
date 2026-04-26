@@ -20,6 +20,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final FocusNode _searchFocusNode = FocusNode();
+  final PageController _upcomingPageController = PageController(
+    viewportFraction: 0.68,
+  );
 
   @override
   void initState() {
@@ -35,6 +38,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _upcomingPageController.dispose();
     super.dispose();
   }
 
@@ -103,10 +107,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                           '/events-list?type=phaseshift',
                         ),
                         _buildFadeSeparator(
-                          padding: const EdgeInsets.only(
-                            left: 72,
-                            right: 12,
-                            bottom: 24,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 56,
+                            vertical: 10,
                           ),
                         ),
                         _buildDomainItem(
@@ -118,10 +121,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                           '/events-list?type=utsav',
                         ),
                         _buildFadeSeparator(
-                          padding: const EdgeInsets.only(
-                            left: 72,
-                            right: 12,
-                            bottom: 24,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 56,
+                            vertical: 10,
                           ),
                         ),
                         _buildDomainItem(
@@ -144,60 +146,72 @@ class _HomePageState extends ConsumerState<HomePage> {
               if (isSearching)
                 _buildSearchResults(eventsAsync)
               else ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _buildFadeSeparator(),
-                  ),
-                ),
-
                 // UPCOMING EVENTS / SUGGESTED EVENTS
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                     child: bookingsAsync.when(
                       data: (bookings) {
-                        final upcomingEvents = _extractUpcomingEvents(bookings);
-                        final hasBookings = upcomingEvents.isNotEmpty;
-                        final suggestedSection = _buildSuggestedEventsSection(
-                          eventsAsync,
-                          showHeader: hasBookings,
-                        );
+                        return eventsAsync.when(
+                          data: (allEvents) {
+                            final upcomingEvents = _extractUpcomingEvents(
+                              bookings,
+                              allEvents,
+                            );
+                            final hasBookings = upcomingEvents.isNotEmpty;
+                            final suggestedSection =
+                                _buildSuggestedEventsSection(
+                                  eventsAsync,
+                                  showHeader: hasBookings,
+                                );
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              hasBookings
-                                  ? 'YOUR UPCOMING EVENTS'
-                                  : 'SUGGESTED EVENTS',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.6,
-                              ),
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  hasBookings
+                                      ? 'YOUR UPCOMING EVENTS'
+                                      : 'SUGGESTED EVENTS',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  hasBookings
+                                      ? 'All of your booked tickets are shown below.'
+                                      : 'Pick from PhaseShift, Utsav, and Club events.',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white38,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                if (hasBookings) ...[
+                                  _buildUpcomingEventsCarousel(upcomingEvents),
+                                  const SizedBox(height: 32),
+                                  suggestedSection,
+                                ] else ...[
+                                  suggestedSection,
+                                ],
+                              ],
+                            );
+                          },
+                          loading: () => const Padding(
+                            padding: EdgeInsets.only(top: 24),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          error: (e, _) => Text(
+                            'ERROR: $e',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.redAccent,
+                              fontSize: 12,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              hasBookings
-                                  ? 'All of your booked tickets are shown below.'
-                                  : 'Pick from PhaseShift, Utsav, and Club events.',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: Colors.white38,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            if (hasBookings) ...[
-                              ...upcomingEvents.map(_buildUpcomingEventCard),
-                              const SizedBox(height: 32),
-                              suggestedSection,
-                            ] else ...[
-                              suggestedSection,
-                            ],
-                          ],
+                          ),
                         );
                       },
                       loading: () => const Padding(
@@ -318,12 +332,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Padding(
       padding: padding,
       child: Container(
-        height: 1,
+        height: 3,
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
           gradient: LinearGradient(
             colors: [
               Colors.transparent,
-              Colors.white.withOpacity(0.35),
+              Colors.white.withOpacity(0.7),
               Colors.transparent,
             ],
           ),
@@ -342,7 +357,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     IconData? icon,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -416,7 +431,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  List<_UpcomingEventCardData> _extractUpcomingEvents(List<dynamic> bookings) {
+  List<_UpcomingEventCardData> _extractUpcomingEvents(
+    List<dynamic> bookings,
+    List<FullEvent> allEvents,
+  ) {
     final cards = <_UpcomingEventCardData>[];
 
     for (final booking in bookings) {
@@ -430,6 +448,10 @@ class _HomePageState extends ConsumerState<HomePage> {
           _UpcomingEventCardData(
             eventName: bookedEventMap['event_name']?.toString() ?? 'Event',
             slotInfo: bookedEventMap['slot_info']?.toString() ?? '',
+            bannerImage: _resolveUpcomingBannerImage(
+              bookedEventMap['event_name']?.toString() ?? 'Event',
+              allEvents,
+            ),
             ticketsCount: participants.isNotEmpty
                 ? participants.length
                 : int.tryParse(
@@ -448,80 +470,145 @@ class _HomePageState extends ConsumerState<HomePage> {
     return cards;
   }
 
-  Widget _buildUpcomingEventCard(_UpcomingEventCardData item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131D),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+  Widget _buildUpcomingEventsCarousel(List<_UpcomingEventCardData> items) {
+    return SizedBox(
+      height: 260,
+      child: PageView.builder(
+        controller: _upcomingPageController,
+        padEnds: false,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _buildUpcomingEventCard(items[index]),
+          );
+        },
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF1C7C), Color(0xFF00E5FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    );
+  }
+
+  Widget _buildUpcomingEventCard(_UpcomingEventCardData item) {
+    return GestureDetector(
+      onTap: item.bookingId.isEmpty
+          ? null
+          : () => context.push('/ticket/${item.bookingId}'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF13131D),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (item.bannerImage != null)
+              R2ImageWidget(
+                imageKey: item.bannerImage,
+                height: double.infinity,
+                width: double.infinity,
+                borderRadius: 0,
+              )
+            else
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1A1A24), Color(0xFF0C0C12)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.confirmation_number_outlined,
+                    color: Colors.white24,
+                    size: 52,
+                  ),
+                ),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withOpacity(0.1),
+                    Colors.black.withOpacity(0.65),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
             ),
-            child: const Icon(
-              Icons.confirmation_number_outlined,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.eventName.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.ticketsCount} TICKETS',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white38,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (item.slotInfo.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
                   Text(
-                    item.slotInfo,
+                    item.eventName.toUpperCase(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
+                          ),
+                        ),
+                        child: Text(
+                          '${item.ticketsCount} TICKETS',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (item.slotInfo.isNotEmpty)
+                        Expanded(
+                          child: Text(
+                            item.slotInfo,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '#${item.bookingId}',
+                    style: GoogleFonts.jetBrainsMono(
                       color: Colors.white54,
-                      fontSize: 11,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '#${item.bookingId}',
-            style: GoogleFonts.jetBrainsMono(
-              color: Colors.white24,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -697,6 +784,22 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
     return <String, dynamic>{};
+  }
+
+  String? _resolveUpcomingBannerImage(
+    String eventName,
+    List<FullEvent> allEvents,
+  ) {
+    final normalizedName = eventName.toLowerCase().replaceAll(' ', '');
+    for (final event in allEvents) {
+      final title = event.event.title.toLowerCase().replaceAll(' ', '');
+      if (title == normalizedName ||
+          title.contains(normalizedName) ||
+          normalizedName.contains(title)) {
+        return event.event.bannerImage;
+      }
+    }
+    return null;
   }
 
   Widget _buildLogCard(Map<String, dynamic> log) {
@@ -951,11 +1054,13 @@ class _UpcomingEventCardData {
   final String slotInfo;
   final int ticketsCount;
   final String bookingId;
+  final String? bannerImage;
 
   _UpcomingEventCardData({
     required this.eventName,
     required this.slotInfo,
     required this.ticketsCount,
     required this.bookingId,
+    required this.bannerImage,
   });
 }
