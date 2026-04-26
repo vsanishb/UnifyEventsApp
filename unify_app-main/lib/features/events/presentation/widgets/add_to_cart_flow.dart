@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../domain/models/event_model.dart';
@@ -380,6 +383,12 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
         );
       }
     } on AppException catch (e) {
+      final lowerMessage = e.message.toLowerCase();
+      if (lowerMessage.contains('already') && lowerMessage.contains('cart')) {
+        await _showDuplicateMessageAndGoHome();
+        return;
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent),
@@ -395,6 +404,108 @@ class _AddToCartFlowState extends ConsumerState<AddToCartFlow> {
         );
       }
     }
+  }
+
+  Future<void> _showDuplicateMessageAndGoHome() async {
+    if (!mounted) return;
+
+    bool redirected = false;
+    int secondsLeft = 7;
+    void Function(void Function())? setDialogState;
+
+    void redirectToHome() {
+      if (redirected || !mounted) return;
+      redirected = true;
+
+      final rootNavigator = Navigator.of(context, rootNavigator: true);
+      if (rootNavigator.canPop()) {
+        rootNavigator.pop();
+      }
+      if (!mounted) return;
+
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      if (!mounted) return;
+
+      context.go('/home');
+    }
+
+    final timer = Timer(const Duration(seconds: 7), redirectToHome);
+    final ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (redirected) return;
+      if (secondsLeft > 0) {
+        secondsLeft--;
+        if (setDialogState != null) {
+          setDialogState!(() {});
+        }
+      }
+    });
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (_, __, ___) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (timer.isActive) timer.cancel();
+            if (ticker.isActive) ticker.cancel();
+            redirectToHome();
+          },
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF13131D),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  setDialogState = setState;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "This event is already in your cart, further bookings for this event cannot be made under this account. Visit cart to edit details.",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          height: 1.4,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Redirecting in ${secondsLeft}s",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (timer.isActive) timer.cancel();
+    if (ticker.isActive) ticker.cancel();
   }
 
   String _formatTime(String time) {
