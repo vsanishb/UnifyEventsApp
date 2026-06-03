@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/manage_events_provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:unify_events/shared/widgets/r2_image_widget.dart';
+import 'package:unify_events/shared/widgets/app_cached_image.dart';
 
 class ManageEventModals {
   static Future<void> showDeleteEventModal(
@@ -15,63 +16,13 @@ class ManageEventModals {
     int eventId,
     String eventName,
   ) async {
-    return showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1B1B26),
-        title: Text(
-          'Delete $eventName?',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _DeleteEventFullScreen(
+          eventId: eventId,
+          eventName: eventName,
         ),
-        content: const Text(
-          'This action cannot be undone. Are you sure you want to delete this event?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () async {
-              try {
-                await ref.read(dioProvider).delete('/events/$eventId/');
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Event Deleted'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                  ref.invalidate(manageEventsProvider);
-                }
-              } catch (e) {
-                if (ctx.mounted)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed: $e'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-              }
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -81,9 +32,11 @@ class ManageEventModals {
     WidgetRef ref,
     Map<String, dynamic> event,
   ) async {
-    return showDialog(
-      context: context,
-      builder: (ctx) => _OrganisersSplitModal(event: event),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _OrganisersSplitFullScreen(event: event),
+      ),
     );
   }
 
@@ -92,24 +45,185 @@ class ManageEventModals {
     WidgetRef ref, {
     Map<String, dynamic>? event,
   }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _EventFormModal(event: event),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _EventFormModal(event: event),
+      ),
     );
   }
 }
 
-class _OrganisersSplitModal extends ConsumerStatefulWidget {
-  final Map<String, dynamic> event;
-  const _OrganisersSplitModal({required this.event});
+// --------------------------------------------------------------------------
+// DELETE EVENT FULL SCREEN CONFIRMATION
+// --------------------------------------------------------------------------
+class _DeleteEventFullScreen extends ConsumerStatefulWidget {
+  final int eventId;
+  final String eventName;
+
+  const _DeleteEventFullScreen({
+    required this.eventId,
+    required this.eventName,
+  });
+
   @override
-  ConsumerState<_OrganisersSplitModal> createState() =>
-      _OrganisersSplitModalState();
+  ConsumerState<_DeleteEventFullScreen> createState() => _DeleteEventFullScreenState();
 }
 
-class _OrganisersSplitModalState extends ConsumerState<_OrganisersSplitModal> {
+class _DeleteEventFullScreenState extends ConsumerState<_DeleteEventFullScreen> {
+  bool _isLoading = false;
+
+  Future<void> _deleteEvent() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(dioProvider).delete('/events/${widget.eventId}/');
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Event Deleted successfully', style: GoogleFonts.breeSerif()),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        ref.invalidate(manageEventsProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: $e', style: GoogleFonts.breeSerif()),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Spacer(),
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_forever_outlined,
+                  color: Colors.redAccent,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                'Delete ${widget.eventName}?',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.breeSerif(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'This action cannot be undone. Are you sure you want to permanently delete this event and all associated bookings?',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.breeSerif(
+                  color: Colors.white54,
+                  fontSize: 16,
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _isLoading ? null : _deleteEvent,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(
+                          'Delete Event',
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.breeSerif(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --------------------------------------------------------------------------
+// ORGANISERS SPLIT FULL SCREEN
+// --------------------------------------------------------------------------
+class _OrganisersSplitFullScreen extends ConsumerStatefulWidget {
+  final Map<String, dynamic> event;
+  const _OrganisersSplitFullScreen({required this.event});
+  @override
+  ConsumerState<_OrganisersSplitFullScreen> createState() =>
+      _OrganisersSplitFullScreenState();
+}
+
+class _OrganisersSplitFullScreenState extends ConsumerState<_OrganisersSplitFullScreen> {
   List<int> _assignedIds = [];
   bool _isLoading = false;
   String _search = '';
@@ -133,8 +247,8 @@ class _OrganisersSplitModalState extends ConsumerState<_OrganisersSplitModal> {
         Navigator.pop(context);
         ref.invalidate(manageEventsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Organisers saved successfully!'),
+          SnackBar(
+            content: Text('Organisers saved successfully!', style: GoogleFonts.breeSerif()),
             backgroundColor: Colors.green,
           ),
         );
@@ -146,15 +260,10 @@ class _OrganisersSplitModalState extends ConsumerState<_OrganisersSplitModal> {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed: $errMsg',
-              style: const TextStyle(fontSize: 12),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+            content: Text('Failed: $errMsg', style: GoogleFonts.breeSerif()),
+            backgroundColor: Colors.redAccent,
           ),
         );
-      print("API ERROR: $errMsg");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -164,213 +273,192 @@ class _OrganisersSplitModalState extends ConsumerState<_OrganisersSplitModal> {
   Widget build(BuildContext context) {
     final organisersAsync = ref.watch(organisersProvider);
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF1B1B26),
-      title: const Text(
-        'Manage Organisers',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Manage Organisers',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _submit,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(color: Color(0xFFFECF65), strokeWidth: 2),
+                  )
+                : Text(
+                    'Save',
+                    style: GoogleFonts.breeSerif(
+                      color: const Color(0xFFFECF65),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+          ),
+        ],
       ),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: 400,
-        child: organisersAsync.when(
-          data: (allOrganisers) {
-            final available = allOrganisers
-                .where(
-                  (o) =>
-                      !_assignedIds.contains(o['id']) &&
-                      (o['user_display']?.toString().toLowerCase().contains(
-                            _search,
-                          ) ??
-                          false),
-                )
-                .toList();
-            final assignedList = allOrganisers
-                .where((o) => _assignedIds.contains(o['id']))
-                .toList();
-
-            return Column(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Assigned',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0A0A0F),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: assignedList.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'None',
-                                    style: TextStyle(color: Colors.white54),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  itemCount: assignedList.length,
-                                  itemBuilder: (ctx, i) => ListTile(
-                                    title: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            assignedList[i]['user_display'] ??
-                                                'ID: ${assignedList[i]['id']}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.remove_circle,
-                                        color: Colors.redAccent,
-                                        size: 20,
-                                      ),
-                                      onPressed: () => setState(
-                                        () => _assignedIds.remove(
-                                          assignedList[i]['id'],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Search Field
+              TextField(
+                style: GoogleFonts.breeSerif(color: Colors.white),
+                onChanged: (v) => setState(() => _search = v.toLowerCase()),
+                decoration: InputDecoration(
+                  hintText: 'Search available organizers...',
+                  hintStyle: GoogleFonts.breeSerif(color: Colors.white38),
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFFFECF65)),
+                  filled: true,
+                  fillColor: const Color(0xFF16151A),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFFECF65)),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Available',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontWeight: FontWeight.bold,
-                        ),
+              ),
+              const SizedBox(height: 24),
+
+              // Assigned Organisers List
+              Text(
+                'Assigned Organisers',
+                style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: organisersAsync.when(
+                  data: (allOrganisers) {
+                    final assignedList = allOrganisers
+                        .where((o) => _assignedIds.contains(o['id']))
+                        .toList();
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16151A),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
                       ),
-                      const SizedBox(height: 4),
-                      TextField(
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                        ),
-                        onChanged: (v) =>
-                            setState(() => _search = v.toLowerCase()),
-                        decoration: InputDecoration(
-                          hintText: 'Search...',
-                          hintStyle: const TextStyle(color: Colors.white54),
-                          filled: true,
-                          fillColor: const Color(0xFF0A0A0F),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0A0A0F),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ListView.builder(
-                            itemCount: available.length,
-                            itemBuilder: (ctx, i) => ListTile(
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      available[i]['user_display'] ??
-                                          'ID: ${available[i]['id']}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                      child: assignedList.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No organisers assigned yet.',
+                                style: GoogleFonts.breeSerif(color: Colors.white38),
                               ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.add_circle,
-                                  color: Color(0xFF7C3AED),
-                                  size: 20,
+                            )
+                          : ListView.builder(
+                              itemCount: assignedList.length,
+                              itemBuilder: (ctx, i) => ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: const Color(0xFFFECF65).withOpacity(0.1),
+                                  child: const Icon(Icons.person, color: Color(0xFFFECF65)),
                                 ),
-                                onPressed: () => setState(
-                                  () => _assignedIds.add(available[i]['id']),
+                                title: Text(
+                                  assignedList[i]['user_display'] ?? 'ID: ${assignedList[i]['id']}',
+                                  style: GoogleFonts.breeSerif(color: Colors.white),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.remove_circle, color: Colors.redAccent),
+                                  onPressed: () => setState(
+                                    () => _assignedIds.remove(assignedList[i]['id']),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+                  error: (_, __) => Center(
+                    child: Text('Failed to load organisers', style: GoogleFonts.breeSerif(color: Colors.redAccent)),
                   ),
                 ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, __) => const Center(
-            child: Text(
-              'Failed to load organisers',
-              style: TextStyle(color: Colors.red),
-            ),
+              ),
+              const SizedBox(height: 24),
+
+              // Available Organisers List
+              Text(
+                'Available Organisers',
+                style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: organisersAsync.when(
+                  data: (allOrganisers) {
+                    final available = allOrganisers
+                        .where(
+                          (o) =>
+                              !_assignedIds.contains(o['id']) &&
+                              (o['user_display']?.toString().toLowerCase().contains(_search) ?? false),
+                        )
+                        .toList();
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16151A),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      ),
+                      child: available.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No other organisers available.',
+                                style: GoogleFonts.breeSerif(color: Colors.white38),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: available.length,
+                              itemBuilder: (ctx, i) => ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.white.withOpacity(0.05),
+                                  child: const Icon(Icons.person, color: Colors.white54),
+                                ),
+                                title: Text(
+                                  available[i]['user_display'] ?? 'ID: ${available[i]['id']}',
+                                  style: GoogleFonts.breeSerif(color: Colors.white),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.add_circle, color: Color(0xFFFECF65)),
+                                  onPressed: () => setState(
+                                    () => _assignedIds.add(available[i]['id']),
+                                  ),
+                                ),
+                              ),
+                            ),
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+                  error: (_, __) => const SizedBox(),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF7C3AED),
-          ),
-          onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Save', style: TextStyle(color: Colors.white)),
-        ),
-      ],
     );
   }
 }
 
+// --------------------------------------------------------------------------
+// EVENT FORM FULL SCREEN SCREEN
+// --------------------------------------------------------------------------
 class _EventFormModal extends ConsumerStatefulWidget {
   final Map<String, dynamic>? event;
   const _EventFormModal({this.event});
@@ -392,15 +480,9 @@ class _EventFormModalState extends ConsumerState<_EventFormModal> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(
-      text: widget.event?['name']?.toString() ?? '',
-    );
-    _committeeCtrl = TextEditingController(
-      text: widget.event?['parent_committee']?.toString() ?? '',
-    );
-    _priceCtrl = TextEditingController(
-      text: widget.event?['price']?.toString() ?? '',
-    );
+    _nameCtrl = TextEditingController(text: widget.event?['name']?.toString() ?? '');
+    _committeeCtrl = TextEditingController(text: widget.event?['parent_committee']?.toString() ?? '');
+    _priceCtrl = TextEditingController(text: widget.event?['price']?.toString() ?? '');
 
     _selectedParentEventId = widget.event?['parent_event'] is int
         ? widget.event!['parent_event']
@@ -408,9 +490,15 @@ class _EventFormModalState extends ConsumerState<_EventFormModal> {
     _selectedCategoryId = widget.event?['category'] is int
         ? widget.event!['category']
         : int.tryParse(widget.event?['category']?.toString() ?? '');
-    _isExclusive =
-        widget.event?['exclusivity'] == true ||
-        widget.event?['exclusivity'] == 'EXCLUSIVE';
+    _isExclusive = widget.event?['exclusivity'] == true || widget.event?['exclusivity'] == 'EXCLUSIVE';
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _committeeCtrl.dispose();
+    _priceCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage() async {
@@ -426,30 +514,20 @@ class _EventFormModalState extends ConsumerState<_EventFormModal> {
 
       if (widget.event == null) {
         if (_nameCtrl.text.isNotEmpty) payload["name"] = _nameCtrl.text;
-        if (_committeeCtrl.text.isNotEmpty)
-          payload["parent_committee"] = _committeeCtrl.text;
-        if (_selectedParentEventId != null)
-          payload["parent_event"] = _selectedParentEventId;
-        if (_selectedCategoryId != null)
-          payload["category"] = _selectedCategoryId;
-        if (_priceCtrl.text.isNotEmpty)
-          payload["price"] = int.tryParse(_priceCtrl.text) ?? 0;
+        if (_committeeCtrl.text.isNotEmpty) payload["parent_committee"] = _committeeCtrl.text;
+        if (_selectedParentEventId != null) payload["parent_event"] = _selectedParentEventId;
+        if (_selectedCategoryId != null) payload["category"] = _selectedCategoryId;
+        if (_priceCtrl.text.isNotEmpty) payload["price"] = int.tryParse(_priceCtrl.text) ?? 0;
         payload["exclusivity"] = _isExclusive ? "true" : "false";
       } else {
-        if (_nameCtrl.text != widget.event!['name'])
-          payload["name"] = _nameCtrl.text;
-        if (_committeeCtrl.text !=
-            widget.event!['parent_committee']?.toString())
+        if (_nameCtrl.text != widget.event!['name']) payload["name"] = _nameCtrl.text;
+        if (_committeeCtrl.text != widget.event!['parent_committee']?.toString())
           payload["parent_committee"] = _committeeCtrl.text;
-        if (_selectedParentEventId != widget.event!['parent_event'])
-          payload["parent_event"] = _selectedParentEventId;
-        if (_selectedCategoryId != widget.event!['category'])
-          payload["category"] = _selectedCategoryId;
-        if (int.tryParse(_priceCtrl.text) != widget.event!['price'])
-          payload["price"] = int.tryParse(_priceCtrl.text) ?? 0;
+        if (_selectedParentEventId != widget.event!['parent_event']) payload["parent_event"] = _selectedParentEventId;
+        if (_selectedCategoryId != widget.event!['category']) payload["category"] = _selectedCategoryId;
+        if (int.tryParse(_priceCtrl.text) != widget.event!['price']) payload["price"] = int.tryParse(_priceCtrl.text) ?? 0;
         final exc = _isExclusive ? "true" : "false";
-        if (exc != widget.event!['exclusivity']?.toString().toLowerCase())
-          payload["exclusivity"] = exc;
+        if (exc != widget.event!['exclusivity']?.toString().toLowerCase()) payload["exclusivity"] = exc;
       }
 
       for (var entry in payload.entries) {
@@ -475,28 +553,22 @@ class _EventFormModalState extends ConsumerState<_EventFormModal> {
         Navigator.pop(context);
         ref.invalidate(manageEventsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Event saved successfully!'),
+          SnackBar(
+            content: Text('Event saved successfully!', style: GoogleFonts.breeSerif()),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
       String errMsg = e.toString();
-      if (e is DioError)
-        errMsg = e.response?.data?.toString() ?? e.message ?? "Unknown error";
+      if (e is DioError) errMsg = e.response?.data?.toString() ?? e.message ?? "Unknown error";
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed: $errMsg',
-              style: const TextStyle(fontSize: 12),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+            content: Text('Failed: $errMsg', style: GoogleFonts.breeSerif()),
+            backgroundColor: Colors.redAccent,
           ),
         );
-      print("API ERROR: $errMsg");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -507,182 +579,200 @@ class _EventFormModalState extends ConsumerState<_EventFormModal> {
     final categoriesAsync = ref.watch(categoriesProvider);
     final parentEventsAsync = ref.watch(parentEventsProvider);
 
-    return SafeArea(
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        padding: const EdgeInsets.only(bottom: 20),
-        decoration: const BoxDecoration(
-          color: Color(0xFF1B1B26),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          widget.event == null ? 'Create Event' : 'Edit Event',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                widget.event == null ? 'Create Event' : 'Edit Event',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
               _buildField('Event Name', _nameCtrl),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               _buildField('Parent Committee ID (optional)', _committeeCtrl),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+
               categoriesAsync.when(
                 data: (cats) => DropdownButtonFormField<int>(
                   value: _selectedCategoryId,
-                  dropdownColor: const Color(0xFF1B1B26),
-                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: const Color(0xFF16151A),
+                  style: GoogleFonts.breeSerif(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Category',
-                    labelStyle: const TextStyle(color: Colors.white54),
+                    labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
                     filled: true,
-                    fillColor: const Color(0xFF0A0A0F),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                    fillColor: const Color(0xFF16151A),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: Color(0xFFFECF65)),
                     ),
                   ),
                   items: cats
                       .map(
                         (c) => DropdownMenuItem<int>(
                           value: c['id'],
-                          child: Text(c['name'] ?? 'ID: ${c['id']}'),
+                          child: Text(c['name'] ?? 'ID: ${c['id']}', style: GoogleFonts.breeSerif()),
                         ),
                       )
                       .toList(),
                   onChanged: (v) => setState(() => _selectedCategoryId = v),
                 ),
-                loading: () => const CircularProgressIndicator(),
-                error: (_, __) => const Text(
+                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+                error: (_, __) => Text(
                   'Failed to load categories',
-                  style: TextStyle(color: Colors.red),
+                  style: GoogleFonts.breeSerif(color: Colors.redAccent),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+
               parentEventsAsync.when(
                 data: (parents) => DropdownButtonFormField<int>(
                   value: _selectedParentEventId,
-                  dropdownColor: const Color(0xFF1B1B26),
-                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: const Color(0xFF16151A),
+                  style: GoogleFonts.breeSerif(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Parent Event (optional)',
-                    labelStyle: const TextStyle(color: Colors.white54),
+                    labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
                     filled: true,
-                    fillColor: const Color(0xFF0A0A0F),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                    fillColor: const Color(0xFF16151A),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: Color(0xFFFECF65)),
                     ),
                   ),
                   items: [
-                    const DropdownMenuItem<int>(
+                    DropdownMenuItem<int>(
                       value: null,
-                      child: Text("None"),
+                      child: Text("None", style: GoogleFonts.breeSerif()),
                     ),
                     ...parents.map(
                       (p) => DropdownMenuItem<int>(
                         value: p['id'],
-                        child: Text(p['name'] ?? 'ID: ${p['id']}'),
+                        child: Text(p['name'] ?? 'ID: ${p['id']}', style: GoogleFonts.breeSerif()),
                       ),
                     ),
                   ],
                   onChanged: (v) => setState(() => _selectedParentEventId = v),
                 ),
-                loading: () => const CircularProgressIndicator(),
-                error: (_, __) => const Text(
-                  'Failed to load events',
-                  style: TextStyle(color: Colors.red),
+                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+                error: (_, __) => Text(
+                  'Failed to load parent events',
+                  style: GoogleFonts.breeSerif(color: Colors.redAccent),
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildField('Price', _priceCtrl, isNum: true),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text(
-                  'Exclusive Event',
-                  style: TextStyle(color: Colors.white),
+              const SizedBox(height: 20),
+
+              _buildField('Price (₹)', _priceCtrl, isNum: true),
+              const SizedBox(height: 20),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16151A),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
-                activeColor: const Color(0xFF7C3AED),
-                value: _isExclusive,
-                onChanged: (v) => setState(() => _isExclusive = v),
+                child: SwitchListTile(
+                  title: Text(
+                    'Exclusive Event',
+                    style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 15),
+                  ),
+                  activeColor: const Color(0xFFFECF65),
+                  value: _isExclusive,
+                  onChanged: (v) => setState(() => _isExclusive = v),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+
+              Text(
+                'Event Banner Image',
+                style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
-                  height: 120,
+                  height: 180,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0A0A0F),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF7C3AED).withOpacity(0.5),
-                    ),
+                    color: const Color(0xFF16151A),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
+                  clipBehavior: Clip.antiAlias,
                   child: _imageFile != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(_imageFile!, fit: BoxFit.cover),
-                        )
-                      : (widget.event?['image_key'] != null &&
-                            widget.event!['image_key'].toString().isNotEmpty)
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: R2ImageWidget(
-                            imageKey: widget.event!['image_key'],
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image,
-                              color: Color(0xFF7C3AED),
-                              size: 32,
+                      ? Image.file(_imageFile!, fit: BoxFit.cover)
+                      : (widget.event?['image_key'] != null && widget.event!['image_key'].toString().isNotEmpty)
+                          ? AppCachedImage(
+                              imageKey: widget.event!['image_key'],
+                              fit: BoxFit.cover,
+                            )
+                          : Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFFFECF65), size: 40),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Upload Image (Tap here)',
+                                    style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 13),
+                                  ),
+                                ],
+                              ),
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              'No Image',
-                              style: TextStyle(color: Colors.white54),
-                            ),
-                          ],
-                        ),
                 ),
               ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 40),
+
+              SizedBox(
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFECF65),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
                   ),
+                  onPressed: _isLoading ? null : _submit,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                        )
+                      : Text(
+                          'Save Event',
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
-                onPressed: _isLoading ? null : _submit,
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Save Event',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
               ),
             ],
           ),
@@ -698,16 +788,20 @@ class _EventFormModalState extends ConsumerState<_EventFormModal> {
   }) {
     return TextField(
       controller: ctrl,
-      style: const TextStyle(color: Colors.white),
+      style: GoogleFonts.breeSerif(color: Colors.white),
       keyboardType: isNum ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54),
+        labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
         filled: true,
-        fillColor: const Color(0xFF0A0A0F),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+        fillColor: const Color(0xFF16151A),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFFECF65)),
         ),
       ),
     );

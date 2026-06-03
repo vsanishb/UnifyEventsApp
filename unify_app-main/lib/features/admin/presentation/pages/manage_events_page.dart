@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/events/presentation/widgets/manage_event_card.dart';
 import '../../../../features/events/presentation/providers/manage_events_provider.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
@@ -28,16 +29,16 @@ class ManageEventsPage extends ConsumerWidget {
             SliverAppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              pinned: true,
+              pinned: false,
               expandedHeight: 120,
-              flexibleSpace: const FlexibleSpaceBar(
+              flexibleSpace: FlexibleSpaceBar(
                 titlePadding: EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 16,
                 ),
                 title: Text(
                   'Manage Events',
-                  style: TextStyle(
+                  style: GoogleFonts.breeSerif(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.5,
@@ -51,26 +52,28 @@ class ManageEventsPage extends ConsumerWidget {
                     child: Center(
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
+                          backgroundColor: const Color(0xFFFECF65),
+                          foregroundColor: const Color(0xFF0F0E11),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(24),
                           ),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 10,
                           ),
+                          elevation: 0,
                         ),
                         onPressed: () =>
                             ManageEventModals.showEventModal(context, ref),
                         icon: const Icon(
                           Icons.add,
                           size: 18,
-                          color: Colors.white,
+                          color: Color(0xFF0F0E11),
                         ),
-                        label: const Text(
+                        label: Text(
                           'Add Event',
-                          style: TextStyle(
-                            color: Colors.white,
+                          style: GoogleFonts.breeSerif(
+                            color: const Color(0xFF0F0E11),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -81,12 +84,12 @@ class ManageEventsPage extends ConsumerWidget {
             ),
 
             // Subtitle exactly mapping web requirement
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Text(
                   'Here you can manage the structural architecture mapping directly to the endpoints.',
-                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                  style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
                 ),
               ),
             ),
@@ -96,13 +99,13 @@ class ManageEventsPage extends ConsumerWidget {
             eventsAsync.when(
               data: (events) {
                 if (events.isEmpty) {
-                  return const SliverToBoxAdapter(
+                  return SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.all(40),
+                      padding: const EdgeInsets.all(40),
                       child: Center(
                         child: Text(
                           "No events assigned to you.",
-                          style: TextStyle(color: Colors.white54),
+                          style: GoogleFonts.breeSerif(color: Colors.white54),
                         ),
                       ),
                     ),
@@ -138,7 +141,7 @@ class ManageEventsPage extends ConsumerWidget {
                   alignment: Alignment.center,
                   child: Text(
                     "Failed to load nodes: $err",
-                    style: const TextStyle(color: Colors.redAccent, fontFamily: 'monospace'),
+                    style: GoogleFonts.breeSerif(color: Colors.redAccent),
                   ),
                 ),
               ),

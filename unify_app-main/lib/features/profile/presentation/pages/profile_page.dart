@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -11,25 +12,7 @@ class ProfilePage extends ConsumerStatefulWidget {
   ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends ConsumerState<ProfilePage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
+class _ProfilePageState extends ConsumerState<ProfilePage> {
   Future<void> _logout() async {
     await ref.read(authProvider.notifier).logout();
     if (mounted) context.go('/login');
@@ -40,13 +23,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     String currentUsername,
     String currentEmail,
   ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _EditProfileModal(
-        initialUsername: currentUsername,
-        initialEmail: currentEmail,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _EditProfileFullScreen(
+          initialUsername: currentUsername,
+          initialEmail: currentEmail,
+        ),
+      ),
+    );
+  }
+
+  void _showHelpSupportModal(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => const _HelpSupportFullScreen(),
       ),
     );
   }
@@ -61,25 +53,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     final initial = username.isNotEmpty ? username[0].toUpperCase() : 'G';
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background Gradient
+          // Background Glow behind avatar
           Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                color: const Color(0xFF7C3AED).withOpacity(0.15),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF7C3AED).withOpacity(0.2),
-                    blurRadius: 100,
-                  ),
-                ],
+            top: 20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFFECF65).withOpacity(0.04),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFECF65).withOpacity(0.08),
+                      blurRadius: 100,
+                      spreadRadius: 20,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -87,44 +83,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
               physics: const BouncingScrollPhysics(),
-              child: AnimatedBuilder(
-                animation: _animController,
-                builder: (context, child) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Avatar
-                      ScaleTransition(
-                        scale: CurvedAnimation(
-                          parent: _animController,
-                          curve: Curves.easeOutBack,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  // Avatar with Gold border rings
+                  Center(
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFFECF65).withOpacity(0.2),
+                          width: 4,
                         ),
+                      ),
+                      child: Center(
                         child: Container(
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFF7C3AED).withOpacity(0.5),
-                              width: 3,
+                              color: const Color(0xFFFECF65),
+                              width: 2,
                             ),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF7C3AED), Color(0xFFE81CFF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF7C3AED).withOpacity(0.3),
-                                blurRadius: 30,
-                                spreadRadius: 5,
-                              ),
-                            ],
+                            color: const Color(0xFF16151A),
                           ),
                           child: Center(
                             child: Text(
                               initial,
-                              style: const TextStyle(
+                              style: GoogleFonts.breeSerif(
                                 color: Colors.white,
                                 fontSize: 48,
                                 fontWeight: FontWeight.bold,
@@ -133,223 +123,120 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
 
-                      // User Info
-                      FadeTransition(
-                        opacity: CurvedAnimation(
-                          parent: _animController,
-                          curve: const Interval(0.2, 1.0),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
+                  // Username
+                  Text(
+                    username,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.breeSerif(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Email with Ellipsis / Wrap prevention
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      email,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.breeSerif(
+                        color: Colors.white54,
+                        fontSize: 16,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Buttons Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 55,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFECF65),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () => _showEditProfileModal(
+                              context,
                               username,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 26,
+                              email,
+                            ),
+                            child: Text(
+                              'Edit Profile',
+                              style: GoogleFonts.breeSerif(
+                                color: Colors.black,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(
-                                      0xFF7C3AED,
-                                    ).withOpacity(0.2),
-                                    elevation: 0,
-                                    side: BorderSide(
-                                      color: const Color(
-                                        0xFF7C3AED,
-                                      ).withOpacity(0.5),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  onPressed: () => _showEditProfileModal(
-                                    context,
-                                    username,
-                                    email,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    size: 18,
-                                    color: Colors.white,
-                                  ),
-                                  label: const Text(
-                                    'Edit Profile',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent
-                                        .withOpacity(0.2),
-                                    elevation: 0,
-                                    side: BorderSide(
-                                      color: Colors.redAccent.withOpacity(0.5),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  onPressed: _logout,
-                                  icon: const Icon(
-                                    Icons.logout,
-                                    size: 18,
-                                    color: Colors.white,
-                                  ),
-                                  label: const Text(
-                                    'Logout',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-
-                      const SizedBox(height: 48),
-
-                      // Actions List
-                      FadeTransition(
-                        opacity: CurvedAnimation(
-                          parent: _animController,
-                          curve: const Interval(0.4, 1.0),
-                        ),
-                        child: SlideTransition(
-                          position:
-                              Tween<Offset>(
-                                begin: const Offset(0, 0.1),
-                                end: Offset.zero,
-                              ).animate(
-                                CurvedAnimation(
-                                  parent: _animController,
-                                  curve: Curves.easeOut,
-                                ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: SizedBox(
+                          height: 55,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16151A),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(color: Colors.white.withOpacity(0.05)),
                               ),
-                          child: Column(
-                            children: [
-                              _buildActionItem(
-                                Icons.history,
-                                'Booking History',
-                                () => context.go('/bookings'),
+                              elevation: 0,
+                            ),
+                            onPressed: _logout,
+                            child: Text(
+                              'Logout',
+                              style: GoogleFonts.breeSerif(
+                                color: const Color(0xFFE52E50),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
-                              if (user != null &&
-                                  (user.role == 'admin' ||
-                                      user.role == 'organiser'))
-                                _buildActionItem(
-                                  Icons.admin_panel_settings,
-                                  'Manage Dashboard',
-                                  () => context.go('/manage'),
-                                ),
-                              _buildActionItem(
-                                Icons.help_outline,
-                                'Help & Support',
-                                () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    backgroundColor: const Color(0xFF13131D),
-                                    isScrollControlled: true,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(20),
-                                      ),
-                                    ),
-                                    builder: (context) {
-                                      return Padding(
-                                        padding: EdgeInsets.only(
-                                          top: 32.0,
-                                          left: 24.0,
-                                          right: 24.0,
-                                          bottom:
-                                              MediaQuery.of(
-                                                context,
-                                              ).viewInsets.bottom +
-                                              80,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              "HELP & SUPPORT",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 24),
-                                            _buildContactRow(
-                                              "Anish",
-                                              "+91 99999 99999",
-                                              "[EMAIL_ADDRESS]",
-                                            ),
-                                            const SizedBox(height: 16),
-                                            _buildContactRow(
-                                              "Anish",
-                                              "+91 99998 99998",
-                                              "[EMAIL_ADDRESS]",
-                                            ),
-                                            const SizedBox(height: 16),
-                                            _buildContactRow(
-                                              "Anitej",
-                                              "+91 99997 99997",
-                                              "[EMAIL_ADDRESS]",
-                                            ),
-                                            const SizedBox(height: 16),
-                                            _buildContactRow(
-                                              "Arushi",
-                                              "+91 99996 99996",
-                                              "[EMAIL_ADDRESS]",
-                                            ),
-                                            const SizedBox(height: 48),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
                     ],
-                  );
-                },
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Action Menu Cards
+                  _buildMenuCard(
+                    icon: Icons.history_rounded,
+                    title: 'Booking History',
+                    onTap: () => context.go('/bookings'),
+                  ),
+                  const SizedBox(height: 16),
+                  if (user != null && (user.role == 'admin' || user.role == 'organiser')) ...[
+                    _buildMenuCard(
+                      icon: Icons.admin_panel_settings_rounded,
+                      title: 'Manage Dashboard',
+                      onTap: () => context.go('/manage'),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildMenuCard(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Help & Support',
+                    onTap: () => _showHelpSupportModal(context),
+                  ),
+                ],
               ),
             ),
           ),
@@ -358,88 +245,70 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     );
   }
 
-  Widget _buildActionItem(
-    IconData icon,
-    String title,
-    VoidCallback onTap, {
-    bool isDestructive = false,
+  Widget _buildMenuCard({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
   }) {
-    final color = isDestructive ? Colors.redAccent : Colors.white;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131D),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16151A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFECF65).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: const Color(0xFFFECF65), size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.breeSerif(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white24,
+              size: 16,
+            ),
+          ],
+        ),
       ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.white24,
-          size: 16,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactRow(String name, String phone, String email) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          phone,
-          style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 14),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          email,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
-        ),
-      ],
     );
   }
 }
 
-class _EditProfileModal extends ConsumerStatefulWidget {
+// --------------------------------------------------------------------------
+// EDIT PROFILE FULL SCREEN OVERLAY
+// --------------------------------------------------------------------------
+class _EditProfileFullScreen extends ConsumerStatefulWidget {
   final String initialUsername;
   final String initialEmail;
 
-  const _EditProfileModal({
+  const _EditProfileFullScreen({
     required this.initialUsername,
     required this.initialEmail,
   });
 
   @override
-  ConsumerState<_EditProfileModal> createState() => _EditProfileModalState();
+  ConsumerState<_EditProfileFullScreen> createState() => _EditProfileFullScreenState();
 }
 
-class _EditProfileModalState extends ConsumerState<_EditProfileModal> {
+class _EditProfileFullScreenState extends ConsumerState<_EditProfileFullScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _emailController;
   bool _isLoading = false;
@@ -459,11 +328,12 @@ class _EditProfileModalState extends ConsumerState<_EditProfileModal> {
   }
 
   Future<void> _submitParams() async {
-    if (_usernameController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Fields cannot be empty')));
+    if (_usernameController.text.trim().isEmpty || _emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fields cannot be empty', style: GoogleFonts.breeSerif()),
+        ),
+      );
       return;
     }
 
@@ -479,17 +349,16 @@ class _EditProfileModalState extends ConsumerState<_EditProfileModal> {
         },
       );
       if (mounted) {
-        context.pop();
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
               'Profile updated successfully!',
-              style: TextStyle(color: Colors.white),
+              style: GoogleFonts.breeSerif(color: Colors.white),
             ),
             backgroundColor: Colors.green,
           ),
         );
-        // Soft refresh auth pipeline to update user cache over network
         ref.invalidate(authProvider);
       }
     } catch (e) {
@@ -498,7 +367,7 @@ class _EditProfileModalState extends ConsumerState<_EditProfileModal> {
           SnackBar(
             content: Text(
               'Failed to update profile: $e',
-              style: const TextStyle(color: Colors.white),
+              style: GoogleFonts.breeSerif(color: Colors.white),
             ),
             backgroundColor: Colors.redAccent,
           ),
@@ -511,90 +380,205 @@ class _EditProfileModalState extends ConsumerState<_EditProfileModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        top: 24,
-        left: 24,
-        right: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 120,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Edit Profile',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1B1B26),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 20),
+              TextField(
+                controller: _usernameController,
+                style: GoogleFonts.breeSerif(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                  prefixIcon: const Icon(Icons.person, color: Color(0xFFFECF65)),
+                  filled: true,
+                  fillColor: const Color(0xFF16151A),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _emailController,
+                style: GoogleFonts.breeSerif(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                  prefixIcon: const Icon(Icons.email, color: Color(0xFFFECF65)),
+                  filled: true,
+                  fillColor: const Color(0xFF16151A),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFECF65),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _isLoading ? null : _submitParams,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.black,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          'Save Changes',
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --------------------------------------------------------------------------
+// HELP & SUPPORT FULL SCREEN OVERLAY
+// --------------------------------------------------------------------------
+class _HelpSupportFullScreen extends StatelessWidget {
+  const _HelpSupportFullScreen();
+
+  Widget _buildContactRow(String name, String phone, String email) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16151A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Edit Profile',
-            style: TextStyle(
+          Text(
+            name,
+            style: GoogleFonts.breeSerif(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _usernameController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: 'Username',
-              labelStyle: const TextStyle(color: Colors.white54),
-              prefixIcon: const Icon(Icons.person, color: Color(0xFF7C3AED)),
-              filled: true,
-              fillColor: const Color(0xFF0A0A0F),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.phone, color: Color(0xFFFECF65), size: 14),
+              const SizedBox(width: 8),
+              Text(
+                phone,
+                style: GoogleFonts.breeSerif(color: const Color(0xFFFECF65), fontSize: 14),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _emailController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              labelText: 'Email',
-              labelStyle: const TextStyle(color: Colors.white54),
-              prefixIcon: const Icon(Icons.email, color: Color(0xFF7C3AED)),
-              filled: true,
-              fillColor: const Color(0xFF0A0A0F),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.email, color: Colors.white54, size: 14),
+              const SizedBox(width: 8),
+              Text(
+                email,
+                style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C3AED),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: _isLoading ? null : _submitParams,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text(
-                    'Save Changes',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Help & Support',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'CONTACT SUPPORT TEAM',
+                style: GoogleFonts.breeSerif(
+                  color: Colors.white38,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildContactRow("Anish", "+91 99999 99999", "anish.support@unify.com"),
+              _buildContactRow("Anish B", "+91 99998 99998", "anishb.support@unify.com"),
+              _buildContactRow("Anitej", "+91 99997 99997", "anitej.support@unify.com"),
+              _buildContactRow("Arushi", "+91 99996 99996", "arushi.support@unify.com"),
+            ],
+          ),
+        ),
       ),
     );
   }

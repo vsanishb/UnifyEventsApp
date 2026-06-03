@@ -1,10 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../widgets/cyber_grid_background.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -15,12 +14,10 @@ class MainLayout extends ConsumerStatefulWidget {
   ConsumerState<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends ConsumerState<MainLayout>
-    with TickerProviderStateMixin {
+class _MainLayoutState extends ConsumerState<MainLayout> {
   DateTime? _lastPressedAt;
 
   void _onTap(int index, List<String> availableRoutes) {
-    // Map visual index to route
     final route = availableRoutes[index];
 
     if (route == 'scan') {
@@ -30,7 +27,6 @@ class _MainLayoutState extends ConsumerState<MainLayout>
 
     int shellIndex = 0;
 
-    // Find the corresponding shell index for the route
     if (route == 'home')
       shellIndex = 0;
     else if (route == 'events')
@@ -55,63 +51,55 @@ class _MainLayoutState extends ConsumerState<MainLayout>
     final user = ref.watch(authProvider).user;
     final isManager = user?.isAdmin == true || user?.isOrganiser == true;
 
-    // Define available tabs based on role
     final List<Map<String, dynamic>> tabs = [
       {
         'route': 'home',
         'icon': Icons.home_outlined,
-        'activeIcon': Icons.home,
+        'activeIcon': Icons.home_rounded,
         'label': 'Home',
       },
       {
-        'route': 'events',
-        'icon': Icons.explore_outlined,
-        'activeIcon': Icons.explore,
-        'label': 'Events',
+        'route': 'bookings',
+        'icon': Icons.confirmation_number_outlined,
+        'activeIcon': Icons.confirmation_number_rounded,
+        'label': 'Bookings',
       },
       {
         'route': 'cart',
         'icon': Icons.shopping_cart_outlined,
-        'activeIcon': Icons.shopping_cart,
+        'activeIcon': Icons.shopping_cart_rounded,
         'label': 'Cart',
-      },
-      {
-        'route': 'bookings',
-        'icon': Icons.calendar_today_outlined,
-        'activeIcon': Icons.calendar_today,
-        'label': 'Bookings',
       },
       if (isManager)
         {
           'route': 'scan',
           'icon': Icons.qr_code_scanner_outlined,
-          'activeIcon': Icons.qr_code_scanner,
+          'activeIcon': Icons.qr_code_scanner_rounded,
           'label': 'Scan',
         },
       if (isManager)
         {
           'route': 'manage',
           'icon': Icons.dashboard_customize_outlined,
-          'activeIcon': Icons.dashboard_customize,
+          'activeIcon': Icons.dashboard_customize_rounded,
           'label': 'Manage',
         },
       {
         'route': 'profile',
         'icon': Icons.person_outline,
-        'activeIcon': Icons.person,
+        'activeIcon': Icons.person_rounded,
         'label': 'Profile',
       },
     ];
 
     final availableRoutes = tabs.map((t) => t['route'] as String).toList();
 
-    // Determine the visual index based on the current shell index
     String currentRoute = 'home';
     final idx = widget.navigationShell.currentIndex;
     if (idx == 0)
       currentRoute = 'home';
     else if (idx == 1)
-      currentRoute = 'events';
+      currentRoute = 'events'; // Map to Explorer if needed, but visually home/bookings/cart/profile is shown
     else if (idx == 2)
       currentRoute = 'cart';
     else if (idx == 3)
@@ -121,19 +109,26 @@ class _MainLayoutState extends ConsumerState<MainLayout>
     else if (idx == 5)
       currentRoute = 'profile';
 
-    final currentIndex = availableRoutes.indexOf(currentRoute) != -1
-        ? availableRoutes.indexOf(currentRoute)
-        : 0;
+    // Fallback logic to map visual tab index
+    // Note: since the shell contains 6 branches (home, events, cart, bookings, manage, profile)
+    // we want to ensure visual index represents the correct active route
+    int currentIndex = availableRoutes.indexOf(currentRoute);
+    if (currentIndex == -1) {
+      if (currentRoute == 'events') {
+        currentIndex = availableRoutes.indexOf('home'); // Map explorer to home visually if needed
+      } else {
+        currentIndex = 0;
+      }
+    }
 
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) {
         if (didPop) return;
 
-        final currentIndex = widget.navigationShell.currentIndex;
+        final curIdx = widget.navigationShell.currentIndex;
 
-        // If already on Home → allow exit
-        if (currentIndex == 0) {
+        if (curIdx == 0) {
           final now = DateTime.now();
           if (_lastPressedAt == null ||
               now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
@@ -151,114 +146,61 @@ class _MainLayoutState extends ConsumerState<MainLayout>
           return;
         }
 
-        // Otherwise → go to Home tab
         widget.navigationShell.goBranch(0);
       },
       child: Scaffold(
-        backgroundColor:
-            Colors.transparent, // Color is managed by CyberGridBackground
-        body: CyberGridBackground(
-          child: Stack(
-            children: [
-              widget.navigationShell,
-
-              // Floating Navbar
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 24,
-                child: _buildFloatingNavbar(
-                  tabs,
-                  currentIndex,
-                  availableRoutes,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFloatingNavbar(
-    List<Map<String, dynamic>> tabs,
-    int currentIndex,
-    List<String> availableRoutes,
-  ) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+        backgroundColor: const Color(0xFF0F0E11),
+        body: widget.navigationShell,
+        bottomNavigationBar: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF13131D).withOpacity(0.7),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.05),
-              width: 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFE81CFF).withOpacity(0.1),
-                blurRadius: 30,
-                spreadRadius: -5,
-                offset: const Offset(0, 5),
+            color: const Color(0xFF0F0E11),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withOpacity(0.04),
+                width: 1,
               ),
-            ],
+            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(tabs.length, (index) {
-              final tab = tabs[index];
-              final isSelected = index == currentIndex;
+          child: SafeArea(
+            child: Container(
+              height: 64,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(tabs.length, (index) {
+                  final tab = tabs[index];
+                  final isSelected = index == currentIndex;
+                  final color = isSelected ? const Color(0xFFFECF65) : Colors.white30;
 
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => _onTap(index, availableRoutes),
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutQuart,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AnimatedScale(
-                          scale: isSelected ? 1.2 : 1.0,
-                          duration: const Duration(milliseconds: 300),
-                          child: Icon(
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => _onTap(index, availableRoutes),
+                      behavior: HitTestBehavior.opaque,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
                             isSelected ? tab['activeIcon'] : tab['icon'],
-                            color: isSelected
-                                ? const Color(0xFF00E5FF)
-                                : Colors.white24,
+                            color: color,
                             size: 24,
                           ),
-                        ),
-                        if (isSelected) ...[
                           const SizedBox(height: 4),
-                          Container(
-                            width: 16,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF00E5FF),
-                              borderRadius: BorderRadius.circular(2),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0xFF00E5FF),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ],
+                          Text(
+                            tab['label'],
+                            style: GoogleFonts.breeSerif(
+                              color: color,
+                              fontSize: 10,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }),
+                  );
+                }),
+              ),
+            ),
           ),
         ),
       ),

@@ -6,8 +6,17 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/domain/models/event_model.dart';
-import '../../../../shared/widgets/r2_image_widget.dart';
+import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../../core/services/r2_image_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../bookings/presentation/providers/bookings_provider.dart';
+import 'package:unify_events/features/events/presentation/providers/manage_events_provider.dart';
+import '../../../events/presentation/providers/event_details_provider.dart';
+
+import '../widgets/home_painters.dart';
+import '../widgets/image_precache_handler.dart';
+import '../widgets/search_result_card.dart';
+import '../widgets/advanced_filters_sheet.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -16,696 +25,1022 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
+class _HomePageState extends ConsumerState<HomePage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+  bool _isSearching = false;
+  String _priceFilter = "All"; // "All", "Free", "Paid"
+  final List<String> _selectedFests = [];
+  final List<int> _selectedCategories = [];
+  final List<String> _selectedConstraints = [];
+  DateTime? _filterDate;
+  String _filterTimeSlot = "Anytime";
 
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..forward();
-  }
 
   @override
   void dispose() {
-    _animController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
+  String _formatEventDate(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) return "Date TBA";
+    try {
+      final parsed = DateTime.parse(rawDate);
+      final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return "${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}";
+    } catch (_) {
+      if (rawDate.contains(' ')) {
+        return rawDate.split(' ').first;
+      }
+      return rawDate;
+    }
+  }
+
+  String _formatEventTime(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) return "Time TBA";
+    try {
+      final parsed = DateTime.parse(rawDate);
+      final hour = parsed.hour > 12 ? parsed.hour - 12 : (parsed.hour == 0 ? 12 : parsed.hour);
+      final period = parsed.hour >= 12 ? "PM" : "AM";
+      final minuteStr = parsed.minute.toString().padLeft(2, '0');
+      final hourStr = hour.toString().padLeft(2, '0');
+      return "$hourStr:$minuteStr $period";
+    } catch (_) {
+      if (rawDate.contains(' ')) {
+        return rawDate.split(' ').last;
+      }
+      return "08:00 AM";
+    }
+  }
+
+  List<EventModel> _getFilteredEvents(List<EventModel> allEvents) {
+    return allEvents.where((e) {
+      if (_searchQuery.isNotEmpty) {
+        final tMatch = e.title.toLowerCase().contains(_searchQuery.toLowerCase());
+        final dMatch = e.description.toLowerCase().contains(_searchQuery.toLowerCase());
+        if (!tMatch && !dMatch) return false;
+      }
+      if (_priceFilter == "Free") {
+        if (e.price != null && e.price! > 0) return false;
+      } else if (_priceFilter == "Paid") {
+        if (e.price == null || e.price! <= 0) return false;
+      }
+      if (_selectedFests.isNotEmpty) {
+        bool matches = false;
+        for (var f in _selectedFests) {
+          if (f == "phaseshift" && e.parentEventId == 1) matches = true;
+          if (f == "utsav" && e.parentEventId == 2) matches = true;
+          if (f == "regular" && e.parentEventId != 1 && e.parentEventId != 2) matches = true;
+        }
+        if (!matches) return false;
+      }
+      if (_selectedCategories.isNotEmpty) {
+        if (e.categoryId == null || !_selectedCategories.contains(e.categoryId)) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
-    final user = authState.user;
     final eventsAsync = ref.watch(eventsProvider);
     final bookingsAsync = ref.watch(myBookingsProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final parentEventsAsync = ref.watch(parentEventsProvider);
 
     return Scaffold(
-      backgroundColor:
-          Colors.transparent, // Let the main_layout grid shine through
+      backgroundColor: const Color(0xFF0F0E11),
       body: SafeArea(
-        bottom: false,
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(eventsProvider);
             ref.invalidate(myBookingsProvider);
+            ref.invalidate(categoriesProvider);
+            ref.invalidate(parentEventsProvider);
           },
-          color: const Color(0xFF00E5FF),
-          backgroundColor: const Color(0xFF1B1B26),
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // ── SYSTEM HEADER ──────────────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'USER_DASHBOARD',
-                        style: GoogleFonts.spaceMono(
-                          color: Colors.white54,
-                          fontSize: 10,
-                          letterSpacing: 2.0,
-                          fontWeight: FontWeight.bold,
+          color: const Color(0xFFFECF65),
+          backgroundColor: const Color(0xFF16151A),
+          child: categoriesAsync.when(
+            data: (categories) {
+              return eventsAsync.when(
+                data: (allEvents) {
+                  final filtered = _getFilteredEvents(allEvents);
+                  final first10ImageKeys = allEvents
+                      .take(10)
+                      .map((e) => e.bannerImage)
+                      .whereType<String>()
+                      .where((k) => k.isNotEmpty)
+                      .toList();
+
+                  return CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: ImagePrecacheHandler(imageKeys: first10ImageKeys),
+                      ),
+                      // ── Search & Header Bar ─────────────────────────────────────────
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (!_isSearching) ...[
+                                Row(
+                                  children: [
+                                    Text(
+                                      "Unify",
+                                      style: GoogleFonts.breeSerif(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Events",
+                                      style: GoogleFonts.breeSerif(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFFFECF65),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              Row(
+                                children: [
+                                  if (_isSearching)
+                                    IconButton(
+                                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                      onPressed: () {
+                                        setState(() {
+                                          _isSearching = false;
+                                          _searchQuery = "";
+                                          _searchController.clear();
+                                        });
+                                      },
+                                    ),
+                                  Expanded(
+                                    child: Container(
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF16151A),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.04),
+                                        ),
+                                      ),
+                                      child: TextField(
+                                        controller: _searchController,
+                                        onTap: () {
+                                          setState(() => _isSearching = true);
+                                        },
+                                        onChanged: (val) {
+                                          setState(() => _searchQuery = val);
+                                        },
+                                        style: GoogleFonts.breeSerif(color: Colors.white),
+                                        decoration: InputDecoration(
+                                          prefixIcon: const Icon(Icons.search, color: Colors.white30),
+                                          hintText: "Search events, clubs, venues...",
+                                          hintStyle: GoogleFonts.breeSerif(color: Colors.white24, fontSize: 14),
+                                          border: InputBorder.none,
+                                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_isSearching) ...[
+                                    const SizedBox(width: 12),
+                                    GestureDetector(
+                                      onTap: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          backgroundColor: Colors.transparent,
+                                          isScrollControlled: true,
+                                          builder: (ctx) => AdvancedFiltersSheet(
+                                            selectedFests: _selectedFests,
+                                            selectedCategories: _selectedCategories,
+                                            selectedConstraints: _selectedConstraints,
+                                            categories: categories,
+                                            onChanged: () => setState(() {}),
+                                            filterDate: _filterDate,
+                                            filterTimeSlot: _filterTimeSlot,
+                                            onDateChanged: (date) => setState(() => _filterDate = date),
+                                            onTimeSlotChanged: (slot) => setState(() => _filterTimeSlot = slot),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFECF65),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: const Icon(
+                                          Icons.tune_rounded,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      // Welcome text & Avatar row horizontally centered
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
+
+                      // ── Search Mode Layout (Screenshot 3) ───────────────────────────
+                      if (_isSearching) ...[
+                        // Filter Pills: All, Free, Paid
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
                                 children: [
-                                  TextSpan(
-                                    text: 'WELCOME, ',
-                                    style: GoogleFonts.bebasNeue(
-                                      color: Colors.white,
-                                      fontSize: 48,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text:
-                                        user?.username.toUpperCase() ?? "GUEST",
-                                    style: GoogleFonts.bebasNeue(
-                                      color: const Color(0xFFFF1C7C),
-                                      fontSize: 48,
-                                      height: 1.0,
-                                    ),
-                                  ),
+                                  _buildPricePill("All"),
+                                  const SizedBox(width: 8),
+                                  _buildPricePill("Free"),
+                                  const SizedBox(width: 8),
+                                  _buildPricePill("Paid"),
                                 ],
                               ),
                             ),
                           ),
-                          // Avatar
-                          Transform.translate(
-                            offset: const Offset(0, -7),
-                            child: Hero(
-                              tag: 'profile_avatar',
-                              child: GestureDetector(
-                                onTap: () => context.go('/profile'),
-                                child: Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF7C3AED,
-                                      ).withOpacity(0.5),
-                                      width: 2,
-                                    ),
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFF7C3AED),
-                                        Color(0xFFE81CFF),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF7C3AED,
-                                        ).withOpacity(0.3),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                        // Vertical Search Results
+                        if (filtered.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Text(
+                                "No events found",
+                                style: GoogleFonts.breeSerif(color: Colors.white30),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (ctx, idx) {
+                                  final event = filtered[idx];
+                                  return Consumer(
+                                    builder: (context, ref, child) {
+                                      final constraintAsync = ref.watch(constraintProvider(event.id.toString()));
+                                      final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
+                                      final rawDateTime = detailsAsync.valueOrNull?['start_datetime']?.toString();
+
+                                      bool passesDateTime(String? raw) {
+                                        if (_filterDate == null && _filterTimeSlot == "Anytime") return true;
+                                        if (raw == null || raw.isEmpty) return false;
+                                        try {
+                                          final dt = DateTime.parse(raw);
+                                          if (_filterDate != null) {
+                                            if (dt.year != _filterDate!.year ||
+                                                dt.month != _filterDate!.month ||
+                                                dt.day != _filterDate!.day) {
+                                              return false;
+                                            }
+                                          }
+                                          if (_filterTimeSlot != "Anytime") {
+                                            final hour = dt.hour;
+                                            if (_filterTimeSlot == "Morning") {
+                                              if (hour < 8 || hour >= 12) return false;
+                                            } else if (_filterTimeSlot == "Afternoon") {
+                                              if (hour < 12 || hour >= 16) return false;
+                                            } else if (_filterTimeSlot == "Evening") {
+                                              if (hour < 16) return false;
+                                            }
+                                          }
+                                          return true;
+                                        } catch (_) {
+                                          return false;
+                                        }
+                                      }
+
+                                      if (!passesDateTime(rawDateTime)) {
+                                        return const SizedBox.shrink();
+                                      }
+
+                                      return constraintAsync.when(
+                                        data: (constraint) {
+                                          if (_selectedConstraints.isNotEmpty) {
+                                            bool matches = false;
+                                            final type = constraint?.bookingType ?? 'single';
+                                            final isFixed = constraint?.fixed ?? false;
+                                            for (var filter in _selectedConstraints) {
+                                              if (filter == 'single' && type == 'single') matches = true;
+                                              if (filter == 'fixed' && type == 'multiple' && isFixed) matches = true;
+                                              if (filter == 'flexible' && type == 'multiple' && !isFixed) matches = true;
+                                            }
+                                            if (!matches) {
+                                              return const SizedBox.shrink();
+                                            }
+                                          }
+                                          final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
+                                          final rawDateTime = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                          return HomeSearchResultCard(
+                                            event: event,
+                                            venue: venue,
+                                            rawDateTime: rawDateTime,
+                                          );
+                                        },
+                                        loading: () => const SizedBox(
+                                          height: 100,
+                                          child: Center(
+                                            child: CircularProgressIndicator(color: Color(0xFFFECF65)),
+                                          ),
+                                        ),
+                                        error: (_, __) {
+                                          if (_selectedConstraints.isNotEmpty) {
+                                            bool matches = _selectedConstraints.contains('single');
+                                            if (!matches) return const SizedBox.shrink();
+                                          }
+                                          final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
+                                          final rawDateTime = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                          return HomeSearchResultCard(
+                                            event: event,
+                                            venue: venue,
+                                            rawDateTime: rawDateTime,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  );
+                                },
+                                childCount: filtered.length,
+                              ),
+                            ),
+                          ),
+
+                        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                      ]
+
+                      // ── Discovery Dashboard Layout (Screenshot 2) ───────────────────
+                      else ...[
+                        // 1. Featured Events Section
+                        SliverToBoxAdapter(
+                          child: _buildSectionHeader("Featured Events", null),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: 280, // Corrected scale to sit perfectly in layout aspect ratio
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: allEvents.length > 5 ? 5 : allEvents.length,
+                              itemBuilder: (ctx, idx) {
+                                final event = allEvents[idx];
+                                return Consumer(
+                                  builder: (context, ref, child) {
+                                    final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
+                                    final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
+                                    final rawDate = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                    return _buildFeaturedCard(context, event, venue, rawDate);
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
+                        // 2. Parent Events Section
+                        SliverToBoxAdapter(
+                          child: _buildSectionHeader("Parent Events", null),
+                        ),
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: 125,
+                            child: parentEventsAsync.when(
+                              data: (parentEvents) {
+                                if (parentEvents.isEmpty) return const SizedBox();
+                                return ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  itemCount: parentEvents.length,
+                                  itemBuilder: (ctx, idx) {
+                                    final pe = parentEvents[idx];
+                                    final id = pe['id'];
+                                    final name = pe['name'] ?? '';
+                                    final description = pe['description'] ?? pe['subtitle'] ?? 'Festival';
+
+                                    List<Color> colors;
+                                    CustomPainter painter;
+                                    if (id == 1 || name.toLowerCase().contains('phase')) {
+                                      colors = [const Color(0xFF0D1C33), const Color(0xFF060B14)];
+                                      painter = NetworkMeshPainter();
+                                    } else if (id == 2 || name.toLowerCase().contains('utsav')) {
+                                      colors = [const Color(0xFF2B0C2B), const Color(0xFF0D0614)];
+                                      painter = WavesPainter();
+                                    } else {
+                                      colors = [const Color(0xFF1E3A8A), const Color(0xFF0F172A)];
+                                      painter = GeometricParticlesPainter();
+                                    }
+
+                                    return Container(
+                                      width: 170,
+                                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                                      child: _buildParentCard(
+                                        context,
+                                        name,
+                                        description,
+                                        colors,
+                                        painter,
+                                        id == 1
+                                            ? '/events-list?type=phaseshift'
+                                            : id == 2
+                                                ? '/events-list?type=utsav'
+                                                : '/events-list?type=regular',
                                       ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      (user?.username != null &&
-                                              user!.username.isNotEmpty)
-                                          ? user.username[0].toUpperCase()
-                                          : 'G',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
+                                    );
+                                  },
+                                );
+                              },
+                              loading: () => const Center(
+                                child: CircularProgressIndicator(color: Color(0xFFFECF65)),
+                              ),
+                              error: (_, __) => const SizedBox(),
+                            ),
+                          ),
+                        ),
+
+                        // 3. Category Horizontal Rows
+                        ...categories.expand<Widget>((cat) {
+                          final catId = cat['id'] as int;
+                          final catName = cat['name'] as String;
+                          final catEvents = allEvents.where((e) => e.categoryId == catId).toList();
+
+                          if (catEvents.isEmpty) return [];
+
+                          return [
+                            SliverToBoxAdapter(
+                              child: _buildSectionHeader("$catName Events", () {
+                                context.push('/events-list?type=regular');
+                              }),
+                            ),
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                height: 230,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  itemCount: catEvents.length,
+                                  itemBuilder: (ctx, idx) {
+                                    final event = catEvents[idx];
+                                    return Consumer(
+                                      builder: (context, ref, child) {
+                                        final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
+                                        final rawDate = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                        return _buildCategoryEventCard(context, event, rawDate);
+                                      },
+                                    );
+                                  },
                                 ),
                               ),
                             ),
+                          ];
+                        }).toList(),
+
+                        // 4. My Bookings Section
+                        ...bookingsAsync.when(
+                          data: (bookings) {
+                            if (bookings.isEmpty) return [];
+                            final displayCount = bookings.length > 2 ? 2 : bookings.length;
+                            return [
+                              SliverToBoxAdapter(
+                                child: _buildSectionHeader("My Bookings", () {
+                                  // Navigate to bookings branch
+                                }),
+                              ),
+                              SliverPadding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                sliver: SliverList(
+                                  delegate: SliverChildBuilderDelegate(
+                                    (ctx, idx) {
+                                      final b = bookings[idx];
+                                      return _buildBookingCard(context, b, allEvents);
+                                    },
+                                    childCount: displayCount,
+                                  ),
+                                ),
+                              ),
+                            ];
+                          },
+                          loading: () => [],
+                          error: (_, __) => [],
+                        ),
+
+                        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+                      ],
+                    ],
+                  );
+                },
+                loading: () => const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+                ),
+                error: (e, __) => SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      "Error fetching events: $e",
+                      style: GoogleFonts.breeSerif(color: Colors.redAccent),
+                    ),
+                  ),
+                ),
+              );
+            },
+            loading: () => const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+            ),
+            error: (e, __) => SliverFillRemaining(
+              child: Center(
+                child: Text(
+                  "Error fetching categories: $e",
+                  style: GoogleFonts.breeSerif(color: Colors.redAccent),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Helper Widgets ──────────────────────────────────────────────────────────
+
+  Widget _buildPricePill(String label) {
+    final isSel = _priceFilter == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _priceFilter = label);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSel ? const Color(0xFFFECF65) : const Color(0xFF16151A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSel ? const Color(0xFFFECF65) : Colors.white.withOpacity(0.04),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.breeSerif(
+            color: isSel ? Colors.black : Colors.white70,
+            fontSize: 13,
+            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, VoidCallback? onSeeAll) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.breeSerif(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (onSeeAll != null)
+            GestureDetector(
+              onTap: onSeeAll,
+              child: Text(
+                "See all",
+                style: GoogleFonts.breeSerif(
+                  color: const Color(0xFFFECF65),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeaturedCard(BuildContext context, EventModel event, String venue, String? rawDate) {
+    return GestureDetector(
+      onTap: () => context.push('/event-details/${event.id}'),
+      child: Container(
+        width: 290,
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16151A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.04),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Image with Featured Pill
+            SizedBox(
+              height: 165, // Card constraints altered to achieve matching sizing from screenshot UI
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: AppCachedImage(
+                      imageKey: event.bannerImage,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFECF65),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "FEATURED",
+                        style: GoogleFonts.breeSerif(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Text Content
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.breeSerif(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFFFECF65)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          venue,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 13, color: Colors.white30),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatEventDate(rawDate),
+                            style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 11),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.access_time_rounded, size: 13, color: Colors.white30),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatEventTime(rawDate),
+                            style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        event.price != null && event.price! > 0 ? "₹${event.price!.toStringAsFixed(0)}" : "Free",
+                        style: GoogleFonts.breeSerif(
+                          color: const Color(0xFFFECF65),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryEventCard(BuildContext context, EventModel event, String? rawDate) {
+    return GestureDetector(
+      onTap: () => context.push('/event-details/${event.id}'),
+      child: Container(
+        width: 170,
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16151A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.04),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: AppCachedImage(
+                  imageKey: event.bannerImage,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.breeSerif(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_rounded, size: 10, color: Colors.white30),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _formatEventDate(rawDate),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 9),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 10, color: Colors.white30),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _formatEventTime(rawDate),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 9),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    event.price != null && event.price! > 0 ? "₹${event.price!.toStringAsFixed(0)}" : "Free",
+                    style: GoogleFonts.breeSerif(
+                      color: const Color(0xFFFECF65),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParentCard(
+    BuildContext context,
+    String name,
+    String description,
+    List<Color> colors,
+    CustomPainter painter,
+    String route,
+  ) {
+    return GestureDetector(
+      onTap: () => context.push(route),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.08),
+            width: 1.5,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: painter,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    name,
+                    style: GoogleFonts.breeSerif(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.breeSerif(
+                      color: Colors.white60,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingCard(BuildContext context, Map<String, dynamic> item, List<EventModel> allEvents) {
+    final bookedEvents = item['booked_events'] as List<dynamic>? ?? [];
+    if (bookedEvents.isEmpty) return const SizedBox.shrink();
+
+    final bookedEvent = bookedEvents.first;
+    final eventName = bookedEvent['event_name'] ?? 'Event';
+
+    final eventMatch = allEvents.where((e) {
+      return e.title.toLowerCase() == eventName.toString().toLowerCase();
+    }).firstOrNull;
+
+    final imageKey = bookedEvent['event_image'] ?? bookedEvent['image_key'] ?? eventMatch?.bannerImage;
+    final price = eventMatch?.price ?? item['line_total'] ?? 0.0;
+
+    return Consumer(
+      builder: (context, ref, child) {
+        String venue = 'Venue TBA';
+        String? dateStr;
+        if (eventMatch != null) {
+          final detailsAsync = ref.watch(eventDetailsDataProvider(eventMatch.id.toString()));
+          venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
+          dateStr = detailsAsync.valueOrNull?['start_datetime']?.toString();
+        }
+
+        return GestureDetector(
+          onTap: () {
+            final id = bookedEvent['id'] ?? item['id'];
+            if (id != null) context.push('/ticket/$id');
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF16151A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.04),
+              ),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 76,
+                    height: 76,
+                    child: AppCachedImage(
+                      imageKey: imageKey,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        eventName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.breeSerif(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFFFECF65)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              venue,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 11, color: Colors.white30),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatEventDate(dateStr),
+                            style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.access_time_rounded, size: 11, color: Colors.white30),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatEventTime(dateStr),
+                            style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-              ),
-
-              // ── SELECT DOMAIN (QUICK ACTIONS) ──────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: Text(
-                    'SELECT DOMAIN',
-                    style: GoogleFonts.bebasNeue(
-                      color: Colors.white,
-                      fontSize: 28,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: _animController,
-                    curve: const Interval(0.0, 0.4),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        _buildDomainCard(
-                          context,
-                          'PHASE SHIFT',
-                          'TECH SYMPOSIUM',
-                          [const Color(0xFF00E5FF), const Color(0xFF0055FF)],
-                          Icons.bolt,
-                          '/events-list?type=phaseshift',
-                        ),
-                        _buildDomainCard(
-                          context,
-                          'UTSAV',
-                          'CULTURAL FEST',
-                          [const Color(0xFFFF1C7C), const Color(0xFFFF8A00)],
-                          Icons.auto_awesome,
-                          '/events-list?type=utsav',
-                        ),
-                        _buildDomainCard(
-                          context,
-                          'CLUB EVENTS',
-                          'STUDENT GUILDS',
-                          [const Color(0xFF39FF14), const Color(0xFF00AA00)],
-                          Icons.group_work,
-                          '/events-list?type=regular',
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── RECENT LOGS (BOOKINGS) ─────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-                  child: Text(
-                    'RECENT LOGS',
-                    style: GoogleFonts.spaceMono(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-              ),
-
-              bookingsAsync.when(
-                data: (bookingsList) {
-                  if (bookingsList.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Text(
-                          "NO LOGS FOUND. INITIALIZE A TRANSFER.",
-                          style: GoogleFonts.spaceMono(
-                            color: Colors.white38,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  final recent = bookingsList.take(2).toList();
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final item = recent[index];
-                        return FadeTransition(
-                          opacity: CurvedAnimation(
-                            parent: _animController,
-                            curve: const Interval(0.4, 0.8),
-                          ),
-                          child: _buildLogCard(context, item),
-                        );
-                      }, childCount: recent.length),
-                    ),
-                  );
-                },
-                loading: () => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: Center(
-                      child: CircularProgressIndicator(color: const Color(0xFF7C3AED)),
-                    ),
-                  ),
-                ),
-                error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
-              ),
-
-              // ── AVAILABLE NODES (EVENTS) ───────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-                  child: Text(
-                    'AVAILABLE NODES',
-                    style: GoogleFonts.spaceMono(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: _animController,
-                    curve: const Interval(0.2, 0.6),
-                  ),
-                  child: SlideTransition(
-                    position:
-                        Tween<Offset>(
-                          begin: const Offset(0.1, 0),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: _animController,
-                            curve: Curves.easeOut,
-                          ),
-                        ),
-                    child: SizedBox(
-                      height: 180,
-                      child: eventsAsync.when(
-                        data: (events) {
-                          if (events.isEmpty)
-                            return Center(
-                              child: Text(
-                                "NO NODES OBTAINED.",
-                                style: GoogleFonts.spaceMono(
-                                  color: Colors.white38,
-                                ),
-                              ),
-                            );
-                          return ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: events.length > 5 ? 5 : events.length,
-                            itemBuilder: (context, index) {
-                              return _buildNodeTicket(context, events[index]);
-                            },
-                          );
-                        },
-                        loading: () => Center(
-                          child: CircularProgressIndicator(
-                            color: const Color(0xFF7C3AED),
-                          ),
-                        ),
-                        error: (err, stack) => Center(
-                          child: Text(
-                            'ERROR_CODE: $err',
-                            style: GoogleFonts.spaceMono(
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Padding for bottom nav bar
-              const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDomainCard(
-    BuildContext context,
-    String title,
-    String subtitle,
-    List<Color> gradientColors,
-    IconData icon,
-    String route,
-  ) {
-    return GestureDetector(
-      onTap: () => context.push(route),
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF13131D),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
-          boxShadow: [
-            BoxShadow(
-              color: gradientColors.first.withOpacity(0.08),
-              blurRadius: 15,
-              spreadRadius: -5,
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Glowing Icon
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  colors: gradientColors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradientColors.first.withOpacity(0.5),
-                    blurRadius: 15,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-
-            const SizedBox(width: 16),
-
-            // Text Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.bebasNeue(
-                      color: Colors.white,
-                      fontSize: 24,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.spaceMono(
-                      color: gradientColors.first,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Enter Arrow Button
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: gradientColors.first.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: gradientColors.first,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogCard(BuildContext context, Map<String, dynamic> item) {
-    return GestureDetector(
-      onTap: () {
-        if (item['id'] != null) context.push('/ticket/${item['id']}');
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFF4A0024).withOpacity(0.8),
-              const Color(0xFF1B0014).withOpacity(0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: const Color(0xFFFF1C7C).withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'ID_${item['id'] ?? 'XXX'}',
-                  style: GoogleFonts.spaceMono(
-                    color: const Color(0xFFFF1C7C),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '4/14/2026', // Ideally format timestamp from item
-                  style: GoogleFonts.spaceMono(
-                    color: Colors.white38,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'TRANSFER CONFIRMED',
-              style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '₹${item['line_total']?.toStringAsFixed(2) ?? '0.00'}',
-              style: GoogleFonts.spaceMono(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNodeTicket(BuildContext context, EventModel event) {
-    return GestureDetector(
-      onTap: () => context.push('/event-details/${event.id}'),
-      child: Container(
-        width: 320,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: const Color(0xFF13131D),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
-        ),
-        child: Row(
-          children: [
-            // Left Main Section
-            Expanded(
-              flex: 7,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Dimmed Background image
-                  Opacity(
-                    opacity: 0.3,
-                    child: R2ImageWidget(
-                      imageKey: event.bannerImage,
-                      height: double.infinity,
-                      borderRadius: 0,
-                    ),
-                  ),
-
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.confirmation_num_outlined,
-                              size: 14,
-                              color: Color(0xFFFF1C7C),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'EVENT ACCESS TOKEN',
-                              style: GoogleFonts.spaceMono(
-                                color: Colors.white,
-                                fontSize: 10,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          event.title.toUpperCase(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.bebasNeue(
-                            color: Colors.white,
-                            fontSize: 32,
-                            height: 1.1,
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'STATUS',
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white38,
-                                    fontSize: 8,
-                                  ),
-                                ),
-                                Text(
-                                  'VERIFIED_ENTRY',
-                                  style: GoogleFonts.spaceMono(
-                                    color: const Color(0xFF39FF14),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'NODE_REF',
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white38,
-                                    fontSize: 8,
-                                  ),
-                                ),
-                                Text(
-                                  '0X-EVT-${event.id}',
-                                  style: GoogleFonts.spaceMono(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Dashed Divider
-            Container(
-              width: 1,
-              child: Flex(
-                direction: Axis.vertical,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(
-                  20,
-                  (_) => Container(width: 1, height: 4, color: Colors.white12),
-                ),
-              ),
-            ),
-
-            // Right Stub Section
-            Expanded(
-              flex: 3,
-              child: Container(
-                color: const Color(0xFF1E1E2C).withOpacity(0.5),
-                padding: const EdgeInsets.all(12),
-                child: Column(
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'VALUE',
-                      style: GoogleFonts.spaceMono(
-                        color: Colors.white38,
-                        fontSize: 10,
+                      price > 0 ? "₹${price.toStringAsFixed(0)}" : "Free",
+                      style: GoogleFonts.breeSerif(
+                        color: const Color(0xFFFECF65),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      event.price != null && event.price! > 0
-                          ? '₹${event.price}'
-                          : 'FREE',
-                      style: GoogleFonts.bebasNeue(
-                        color: Colors.white,
-                        fontSize: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white54),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        'CLAIM SEAT',
-                        style: GoogleFonts.spaceMono(
-                          color: Colors.white,
-                          fontSize: 8,
-                        ),
+                      '#EVT-${item['id'] ?? 'XXX'}',
+                      style: GoogleFonts.breeSerif(
+                        color: Colors.white24,
+                        fontSize: 9,
                       ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../events/presentation/providers/event_details_provider.dart';
@@ -17,10 +18,10 @@ import '../../domain/models/slot_info.dart';
 
 final bookedEventProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, int>((ref, id) async {
-      final dio = ref.read(dioProvider);
-      final res = await dio.get('/booked-events/$id/');
-      return res.data;
-    });
+  final dio = ref.read(dioProvider);
+  final res = await dio.get('/booked-events/$id/');
+  return res.data;
+});
 
 class TicketPage extends ConsumerStatefulWidget {
   final int bookedEventId;
@@ -33,16 +34,10 @@ class TicketPage extends ConsumerStatefulWidget {
 
 class _TicketPageState extends ConsumerState<TicketPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  late AnimationController _particlesController;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _particlesController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..repeat();
   }
 
   @override
@@ -55,7 +50,6 @@ class _TicketPageState extends ConsumerState<TicketPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _particlesController.dispose();
     super.dispose();
   }
 
@@ -64,160 +58,84 @@ class _TicketPageState extends ConsumerState<TicketPage>
     final bookedAsync = ref.watch(bookedEventProvider(widget.bookedEventId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFF06060A),
+      backgroundColor: Colors.black,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
+        title: Text(
           'Digital Pass',
-          style: TextStyle(
+          style: GoogleFonts.breeSerif(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
           ),
         ),
-        actions: [
-          bookedAsync.maybeWhen(
-            data: (data) => data['is_offline'] == true
-                ? Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.redAccent),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'OFFLINE',
-                      style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  )
-                : const SizedBox(),
-            orElse: () => const SizedBox(),
-          )
-        ],
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         centerTitle: true,
+        backgroundColor: Colors.black,
+        elevation: 0,
       ),
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // Background Animated Particles
-          AnimatedBuilder(
-            animation: _particlesController,
-            builder: (context, _) {
-              return Stack(
-                children: List.generate(4, (index) {
-                  final t = _particlesController.value * 2 * 3.14159;
-                  final dx =
-                      100 *
-                      (index % 2 == 0 ? 1 : -1) *
-                      (1 + 0.5 * sin(t + index * 2));
-                  return Positioned(
-                    top:
-                        MediaQuery.of(context).size.height *
-                            (0.2 + index * 0.2) +
-                        50 * (t + index).sign,
-                    left:
-                        MediaQuery.of(context).size.width *
-                            (0.2 + (index % 2) * 0.5) +
-                        dx,
-                    child: Container(
-                      width: 150 + index * 50,
-                      height: 150 + index * 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: index % 2 == 0
-                            ? const Color(0xFF7C3AED).withOpacity(0.15)
-                            : const Color(0xFFE81CFF).withOpacity(0.15),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                (index % 2 == 0
-                                        ? const Color(0xFF7C3AED)
-                                        : const Color(0xFFE81CFF))
-                                    .withOpacity(0.2),
-                            blurRadius: 100,
-                            spreadRadius: 50,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+      body: SafeArea(
+        child: bookedAsync.when(
+          data: (bookedEvent) {
+            final participants = (bookedEvent['participants'] as List?) ?? [];
+            if (participants.isEmpty) {
+              return Center(
+                child: Text(
+                  "No passes found.",
+                  style: GoogleFonts.breeSerif(color: Colors.white),
+                ),
               );
-            },
-          ),
+            }
 
-          SafeArea(
-            child: bookedAsync.when(
-              data: (bookedEvent) {
-                final participants =
-                    (bookedEvent['participants'] as List?) ?? [];
-                if (participants.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "No passes found.",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  );
-                }
-
-                return PageView.builder(
-                  itemCount: participants.length,
-                  physics: const BouncingScrollPhysics(),
-                  controller: PageController(viewportFraction: 0.85),
-                  itemBuilder: (context, index) {
-                    final p = participants[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10.0,
-                        vertical: 20,
-                      ),
-                      child: ParticipantTicketCard(
-                        participant: p,
-                        bookedEvent: bookedEvent,
-                        bookedEventId: widget.bookedEventId,
-                      ),
-                    );
-                  },
+            return PageView.builder(
+              itemCount: participants.length,
+              physics: const BouncingScrollPhysics(),
+              controller: PageController(viewportFraction: 0.88),
+              itemBuilder: (context, index) {
+                final p = participants[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6.0,
+                    vertical: 12.0,
+                  ),
+                  child: ParticipantTicketCard(
+                    participant: p,
+                    bookedEvent: bookedEvent,
+                    bookedEventId: widget.bookedEventId,
+                    currentIndex: index + 1,
+                    totalCount: participants.length,
+                  ),
                 );
               },
-              loading: () => Container(
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
+            );
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: Color(0xFFFECF65)),
+          ),
+          error: (_, __) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.search_off,
+                  color: Colors.white54,
+                  size: 64,
                 ),
-              ),
-              error: (_, __) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.search_off,
-                      color: Colors.white54,
-                      size: 64,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Ticket not found',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.invalidate(bookedEventProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                Text(
+                  'Ticket not found',
+                  style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 18),
                 ),
-              ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(bookedEventProvider(widget.bookedEventId)),
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -227,12 +145,16 @@ class ParticipantTicketCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> participant;
   final Map<String, dynamic> bookedEvent;
   final int bookedEventId;
+  final int currentIndex;
+  final int totalCount;
 
   const ParticipantTicketCard({
     super.key,
     required this.participant,
     required this.bookedEvent,
     required this.bookedEventId,
+    required this.currentIndex,
+    required this.totalCount,
   });
 
   @override
@@ -240,32 +162,9 @@ class ParticipantTicketCard extends ConsumerStatefulWidget {
       _ParticipantTicketCardState();
 }
 
-class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard>
-    with TickerProviderStateMixin {
+class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard> {
   final GlobalKey _ticketKey = GlobalKey();
-  late AnimationController _entryController;
-  late AnimationController _tiltController;
   bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _entryController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..forward();
-    _tiltController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _entryController.dispose();
-    _tiltController.dispose();
-    super.dispose();
-  }
 
   Future<void> _shareTicket() async {
     setState(() => _isSaving = true);
@@ -289,7 +188,12 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to share ticket.')),
+          SnackBar(
+            content: Text(
+              'Failed to share ticket.',
+              style: GoogleFonts.breeSerif(),
+            ),
+          ),
         );
       }
     } finally {
@@ -297,15 +201,29 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard>
     }
   }
 
+  String formatTimeHHMM(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return 'TBA';
+    try {
+      final dt = DateTime.tryParse(timeStr);
+      if (dt != null) {
+        final hour = dt.hour;
+        final minute = dt.minute;
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final h = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+        return '${h.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+      }
+    } catch (_) {}
+    return timeStr;
+  }
+
   @override
   Widget build(BuildContext context) {
     final eventName =
-        widget.bookedEvent['event_name']?.toString().toUpperCase() ?? 'EVENT';
+        widget.bookedEvent['event_name']?.toString() ?? 'EVENT';
     final p = widget.participant;
     final bool arrived = p['arrived'] == true || p['qr_used'] == true;
     final qrToken = p['qr_token'] ?? '';
 
-    // fetch event details for venue
     final eventIdRaw =
         widget.bookedEvent['event_id'] ?? widget.bookedEvent['event'] ?? '';
     final eventId = eventIdRaw is Map
@@ -313,278 +231,253 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard>
         : eventIdRaw.toString();
     final eventDetailsAsync = ref.watch(eventDetailsDataProvider(eventId));
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([_entryController, _tiltController]),
-      builder: (context, child) {
-        final entryScale =
-            CurvedAnimation(
-                  parent: _entryController,
-                  curve: Curves.easeOutBack,
-                ).value *
-                0.2 +
-            0.8;
-        final entryOpacity = CurvedAnimation(
-          parent: _entryController,
-          curve: Curves.easeIn,
-        ).value;
-        final tiltY = 0.03 * (_tiltController.value - 0.5);
+    // Calculate layout ratio block offsets
+    const double ticketCutoutPositionRatio = 0.70;
 
-        return Opacity(
-          opacity: entryOpacity,
-          child: Transform(
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..scale(entryScale)
-              ..rotateX(tiltY)
-              ..rotateY(-tiltY),
-            alignment: Alignment.center,
-            child: child,
-          ),
-        );
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: RepaintBoundary(
-              key: _ticketKey,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF13131D).withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFF7C3AED).withOpacity(0.6),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF7C3AED).withOpacity(0.2),
-                      blurRadius: 40,
-                      spreadRadius: -5,
-                    ),
-                    BoxShadow(
-                      color: const Color(0xFFE81CFF).withOpacity(0.1),
-                      blurRadius: 40,
-                      offset: const Offset(0, 20),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Stack(
+    return Column(
+      children: [
+        Expanded(
+          child: RepaintBoundary(
+            key: _ticketKey,
+            child: CustomPaint(
+              painter: TicketPainter(
+                backgroundColor: const Color(0xFF16151A),
+                borderColor: Colors.white.withOpacity(0.08),
+                cutoutRatio: ticketCutoutPositionRatio,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final totalHeight = constraints.maxHeight;
+                  final topBlockHeight = totalHeight * ticketCutoutPositionRatio;
+                  final bottomBlockHeight = totalHeight * (1.0 - ticketCutoutPositionRatio);
+
+                  return Column(
                     children: [
-                      // Background gradient
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.white.withOpacity(0.05),
-                                Colors.transparent,
-                                const Color(0xFF7C3AED).withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 32,
-                        ),
+                      // Top Half Content Block
+                      Container(
+                        height: topBlockHeight,
+                        padding: const EdgeInsets.only(left: 24, right: 24, top: 28, bottom: 12),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            // Badge Metadata Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(
-                                  Icons.stars,
-                                  color: Color(0xFFE81CFF),
-                                  size: 24,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFECF65).withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    'PASS ${widget.currentIndex} OF ${widget.totalCount}',
+                                    style: GoogleFonts.breeSerif(
+                                      color: const Color(0xFFFECF65),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'EVENT PASS CONFIRMED',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    arrived ? 'CHECKED IN' : 'VALID ENTRY',
+                                    style: GoogleFonts.breeSerif(
+                                      color: arrived ? Colors.greenAccent : Colors.white30,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 16),
-                            const Divider(
-                              color: Colors.white24,
-                              height: 1,
-                              thickness: 1,
-                            ),
-                            const SizedBox(height: 16),
-
-                            Text(
-                              eventName,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                height: 1.2,
+                            // Event Heading Name
+                            Center(
+                              child: Text(
+                                eventName,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.breeSerif(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 24),
-
-                            // QR DISPLAY
+                            const Spacer(),
+                            // Scaled QR Container Block
                             Center(
                               child: Container(
+                                width: 170,
+                                height: 170,
+                                alignment: Alignment.center,
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(16.0),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: arrived
-                                          ? Colors.greenAccent.withOpacity(0.2)
-                                          : const Color(
-                                              0xFF38BDF8,
-                                            ).withOpacity(0.3),
-                                      blurRadius: 20,
-                                      spreadRadius: 2,
-                                    ),
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
                                   ],
                                 ),
                                 child: arrived
-                                    ? const SizedBox(
-                                        height: 160,
-                                        width: 160,
-                                        child: Center(
-                                          child: Text(
-                                            "Checked In",
-                                            style: TextStyle(
-                                              color: Colors.green,
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                    ? const Center(
+                                        child: Text(
+                                          "Checked In",
+                                          style: TextStyle(
+                                            color: Colors.green,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       )
                                     : QrImageView(
-                                        data:
-                                            """{"type": "event_checkin", "token": "$qrToken", "participant_id": ${p['id']}}""",
+                                        data: """{"type": "event_checkin", "token": "$qrToken", "participant_id": ${p['id']}}""",
                                         version: QrVersions.auto,
-                                        size: 160.0,
+                                        size: 150.0,
                                         gapless: false,
+                                        eyeStyle: const QrEyeStyle(
+                                          eyeShape: QrEyeShape.square,
+                                          color: Colors.black,
+                                        ),
+                                        dataModuleStyle: const QrDataModuleStyle(
+                                          dataModuleShape: QrDataModuleShape.square,
+                                          color: Colors.black,
+                                        ),
                                       ),
                               ),
                             ),
-
-                            const SizedBox(height: 24),
-
-                            // User info
-                            Text(
-                              p['name']?.toString() ?? 'Attendee',
-                              style: const TextStyle(
-                                color: Color(0xFF38BDF8),
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                            const Spacer(),
+                            // User Info Meta Row
+                            Center(
+                              child: Text(
+                                p['name']?.toString() ?? 'Attendee',
+                                style: GoogleFonts.breeSerif(
+                                  color: const Color(0xFFFECF65),
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (p['email'] != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                p['email'].toString(),
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 14,
+                              const SizedBox(height: 2),
+                              Center(
+                                child: Text(
+                                  p['email'].toString(),
+                                  style: GoogleFonts.breeSerif(
+                                    color: Colors.white54,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
-                            if (p['phone'] != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                p['phone'].toString(),
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 14,
-                                ),
+                          ],
+                        ),
+                      ),
+                      // Bottom Half Content Block
+                      Container(
+                        height: bottomBlockHeight,
+                        padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 20),
+                        alignment: Alignment.center,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'DATE',
+                                    style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _getDateText(widget.bookedEvent['slot_info']),
+                                    style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'TIME',
+                                    style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _getTimeText(widget.bookedEvent['slot_info']),
+                                    style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
                               ),
-                            ],
-
-                            const Spacer(),
-
-                            // Event Details bottom area
-                            const Divider(
-                              color: Colors.white24,
-                              height: 1,
-                              thickness: 1,
                             ),
-                            const SizedBox(height: 16),
-
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: _buildSlotInfoUI(
-                                    widget.bookedEvent['slot_info'],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'VENUE',
+                                    style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
                                   ),
-                                ),
-                                Expanded(
-                                  child: eventDetailsAsync.when(
-                                    data: (details) => _buildInfoItem(
-                                      Icons.location_on,
-                                      'Venue',
-                                      details['venue']?.toString() ?? 'TBA',
+                                  const SizedBox(height: 2),
+                                  eventDetailsAsync.when(
+                                    data: (details) => Text(
+                                      '${details['venue']?.toString() ?? 'TBA'}\n${details['location']?.toString() ?? 'Main Auditorium'}',
+                                      style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    loading: () => const Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white24,
-                                        ),
-                                      ),
+                                    loading: () => const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white30),
                                     ),
-                                    error: (_, __) => _buildInfoItem(
-                                      Icons.location_off,
-                                      'Venue',
-                                      'Failed to load',
+                                    error: (_, __) => Text(
+                                      'TBA',
+                                      style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // DOWNLOAD BUTTON
-          SizedBox(
+        ),
+        const SizedBox(height: 16),
+        // Action Block Button
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 54,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE81CFF),
+                backgroundColor: const Color(0xFFFECF65),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                elevation: 10,
-                shadowColor: const Color(0xFFE81CFF).withOpacity(0.5),
+                elevation: 0,
               ),
               onPressed: _isSaving ? null : _shareTicket,
               icon: _isSaving
@@ -592,124 +485,108 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard>
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: Colors.black,
                         strokeWidth: 2,
                       ),
                     )
-                  : const Icon(Icons.download_rounded, color: Colors.white),
+                  : const Icon(Icons.share, color: Colors.black),
               label: Text(
                 _isSaving ? 'Processing...' : 'Export Pass',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: GoogleFonts.breeSerif(
+                  color: Colors.black,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(IconData icon, String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 14, color: const Color(0xFF7C3AED)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const SizedBox(height: 12),
       ],
     );
   }
 
-  Widget _buildSlotInfoUI(dynamic rawSlotInfo) {
+  String _getDateText(dynamic rawSlotInfo) {
     final slotInfo = SlotInfo.tryParse(rawSlotInfo);
-    if (slotInfo == null)
-      return _buildInfoItem(Icons.event_seat, 'Category', 'General Slot');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (slotInfo.date != null) ...[
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_month,
-                size: 14,
-                color: Color(0xFF7C3AED),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Date',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            slotInfo.date!,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (slotInfo.startTime != null && slotInfo.endTime != null) ...[
-          Row(
-            children: [
-              const Icon(Icons.access_time, size: 14, color: Color(0xFF7C3AED)),
-              const SizedBox(width: 6),
-              const Text(
-                'Time',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${formatTimeHHMM(slotInfo.startTime)} - ${formatTimeHHMM(slotInfo.endTime)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ],
-    );
+    return slotInfo?.date ?? 'TBA';
   }
+
+  String _getTimeText(dynamic rawSlotInfo) {
+    final slotInfo = SlotInfo.tryParse(rawSlotInfo);
+    if (slotInfo?.startTime != null && slotInfo?.endTime != null) {
+      return '${formatTimeHHMM(slotInfo!.startTime)} - ${formatTimeHHMM(slotInfo.endTime)}';
+    }
+    return 'General Slot';
+  }
+}
+
+class TicketPainter extends CustomPainter {
+  final Color backgroundColor;
+  final Color borderColor;
+  final double cutoutRatio;
+
+  TicketPainter({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.cutoutRatio,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final path = Path();
+    const r = 24.0; 
+    const cutoutR = 14.0; 
+    final cutoutY = size.height * cutoutRatio;
+
+    path.moveTo(r, 0);
+    path.lineTo(size.width - r, 0);
+    path.arcToPoint(Offset(size.width, r), radius: const Radius.circular(r));
+    path.lineTo(size.width, cutoutY - cutoutR);
+    path.arcToPoint(Offset(size.width, cutoutY + cutoutR),
+        radius: const Radius.circular(cutoutR), clockwise: false);
+    path.lineTo(size.width, size.height - r);
+    path.arcToPoint(Offset(size.width - r, size.height), radius: const Radius.circular(r));
+    path.lineTo(r, size.height);
+    path.arcToPoint(Offset(0, size.height - r), radius: const Radius.circular(r));
+    path.lineTo(0, cutoutY + cutoutR);
+    path.arcToPoint(Offset(0, cutoutY - cutoutR),
+        radius: const Radius.circular(cutoutR), clockwise: false);
+    path.lineTo(0, r);
+    path.arcToPoint(Offset(r, 0), radius: const Radius.circular(r));
+    path.close();
+
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+
+    final dashPaint = Paint()
+      ..color = Colors.white.withOpacity(0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    double startX = cutoutR + 4;
+    double endX = size.width - cutoutR - 4;
+    const dashWidth = 6.0;
+    const dashSpace = 5.0;
+
+    while (startX < endX) {
+      canvas.drawLine(
+        Offset(startX, cutoutY),
+        Offset(startX + dashWidth, cutoutY),
+        dashPaint,
+      );
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

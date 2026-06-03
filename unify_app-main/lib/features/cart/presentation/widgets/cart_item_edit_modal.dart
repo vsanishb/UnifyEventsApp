@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/cart_provider.dart';
 import '../../../events/presentation/providers/event_details_provider.dart';
 import '../../../events/domain/models/booking_models.dart';
@@ -58,7 +59,6 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
         });
       }
     } catch (_) {
-      // Ignore if it fails, _adjustParticipantsSize will populate empty entries.
       if (mounted) {
         setState(() {
           _adjustParticipantsSize();
@@ -107,7 +107,12 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
       final nameCtrl = p['name'] as TextEditingController;
       if (nameCtrl.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All participant names are required.')),
+          SnackBar(
+            content: Text(
+              'All participant names are required.',
+              style: GoogleFonts.breeSerif(),
+            ),
+          ),
         );
         return;
       }
@@ -154,14 +159,24 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cart item updated successfully')),
+          SnackBar(
+            content: Text(
+              'Cart item updated successfully',
+              style: GoogleFonts.breeSerif(),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to update: $e',
+              style: GoogleFonts.breeSerif(),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -183,51 +198,38 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
     final slotsAsync = ref.watch(slotsProvider(eventId));
     final cartItemId = widget.item['id'];
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1B1B26),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            top: 20,
-            left: 20,
-            right: 20,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Edit Cart Item',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Edit Cart Item',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const Divider(color: Colors.white10),
-
-              Flexible(
+              Expanded(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 16),
+
                       // Team Size Section
                       constraintAsync.when(
                         data: (constraint) {
@@ -239,169 +241,185 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Team Size',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
+                              Text(
+                                'Passes Count',
+                                style: GoogleFonts.breeSerif(
+                                  color: Colors.white,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              if (isSingle)
-                                const Text(
-                                  'This is a single participant event.',
-                                  style: TextStyle(color: Colors.white54),
-                                )
-                              else if (isFixed)
-                                Text(
-                                  'Fixed team size of ${constraint.upperLimit} required.',
-                                  style: const TextStyle(color: Colors.white54),
-                                )
-                              else
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      onPressed: _count > constraint.lowerLimit
-                                          ? () {
-                                              setState(() {
-                                                _count--;
-                                                _adjustParticipantsSize();
-                                              });
-                                            }
-                                          : null,
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        color: Colors.white,
-                                      ),
+                              const SizedBox(height: 8),
+                              Text(
+                                isSingle
+                                    ? 'This is a single participant event.'
+                                    : isFixed
+                                        ? 'Fixed team size of ${constraint.upperLimit} required.'
+                                        : 'Select between ${constraint.lowerLimit} and ${constraint.upperLimit} passes.',
+                                style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
+                              ),
+                              const SizedBox(height: 16),
+                              if (!isSingle && !isFixed)
+                                Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16151A),
+                                      borderRadius: BorderRadius.circular(40),
+                                      border: Border.all(color: Colors.white.withOpacity(0.05)),
                                     ),
-                                    Text(
-                                      '$_count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          onPressed: _count > constraint.lowerLimit
+                                              ? () {
+                                                  setState(() {
+                                                    _count--;
+                                                    _adjustParticipantsSize();
+                                                  });
+                                                }
+                                              : null,
+                                          icon: const Icon(Icons.remove, color: Colors.white),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Text(
+                                          '$_count',
+                                          style: GoogleFonts.breeSerif(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        IconButton(
+                                          onPressed: _count < constraint.upperLimit
+                                              ? () {
+                                                  setState(() {
+                                                    _count++;
+                                                    _adjustParticipantsSize();
+                                                  });
+                                                }
+                                              : null,
+                                          icon: const Icon(Icons.add, color: Colors.white),
+                                        ),
+                                      ],
                                     ),
-                                    IconButton(
-                                      onPressed: _count < constraint.upperLimit
-                                          ? () {
-                                              setState(() {
-                                                _count++;
-                                                _adjustParticipantsSize();
-                                              });
-                                            }
-                                          : null,
-                                      icon: const Icon(
-                                        Icons.add_circle_outline,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               const SizedBox(height: 24),
                             ],
                           );
                         },
                         loading: () => const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF7C3AED),
-                          ),
+                          child: CircularProgressIndicator(color: Color(0xFFFECF65)),
                         ),
-                        error: (_, __) => const Text(
+                        error: (_, __) => Text(
                           'Failed to load constraints',
-                          style: TextStyle(color: Colors.redAccent),
+                          style: GoogleFonts.breeSerif(color: Colors.redAccent),
                         ),
                       ),
 
                       // Participants List
-                      const Text(
-                        'Participants',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
+                      Text(
+                        'Attendees Details',
+                        style: GoogleFonts.breeSerif(
+                          color: Colors.white,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _participants.length,
-                        itemBuilder: (ctx, i) {
-                          final p = _participants[i];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2B2B36),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Participant ${i + 1}',
-                                  style: const TextStyle(color: Colors.white70),
-                                ),
-                                TextField(
-                                  controller:
-                                      p['name'] as TextEditingController,
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Full Name *',
-                                    labelStyle: TextStyle(
-                                      color: Colors.white38,
-                                    ),
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.white24,
-                                      ),
-                                    ),
+                      const SizedBox(height: 16),
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65)))
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _participants.length,
+                              itemBuilder: (ctx, i) {
+                                final p = _participants[i];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16151A),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                                   ),
-                                ),
-                                TextField(
-                                  controller:
-                                      p['email'] as TextEditingController,
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Email (Optional)',
-                                    labelStyle: TextStyle(
-                                      color: Colors.white38,
-                                    ),
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.white24,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Attendee ${i + 1}',
+                                        style: GoogleFonts.breeSerif(
+                                          color: const Color(0xFFFECF65),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
                                       ),
-                                    ),
+                                      const SizedBox(height: 12),
+                                      TextField(
+                                        controller: p['name'] as TextEditingController,
+                                        style: GoogleFonts.breeSerif(color: Colors.white),
+                                        decoration: InputDecoration(
+                                          labelText: 'Full Name *',
+                                          labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                          filled: true,
+                                          fillColor: Colors.black,
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      TextField(
+                                        controller: p['email'] as TextEditingController,
+                                        style: GoogleFonts.breeSerif(color: Colors.white),
+                                        decoration: InputDecoration(
+                                          labelText: 'Email (Optional)',
+                                          labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                          filled: true,
+                                          fillColor: Colors.black,
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 24),
 
                       // Slot Picker
-                      const Text(
+                      Text(
                         'Select Time Slot',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
+                        style: GoogleFonts.breeSerif(
+                          color: Colors.white,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       slotsAsync.when(
                         data: (slots) {
-                          if (slots.isEmpty)
-                            return const Text(
+                          if (slots.isEmpty) {
+                            return Text(
                               'No slots available.',
-                              style: TextStyle(color: Colors.white54),
+                              style: GoogleFonts.breeSerif(color: Colors.white54),
                             );
+                          }
 
                           return Column(
                             children: slots.map((slot) {
@@ -409,57 +427,57 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
                                   slot.unlimitedParticipants ||
                                   (slot.availableParticipants != null &&
                                       slot.availableParticipants! >= _count);
-                              // Allow selection if has capacity, OR if it's the already selected slot.
-                              bool canSelect =
-                                  hasCapacity || _selectedSlotId == slot.id;
+                              bool canSelect = hasCapacity || _selectedSlotId == slot.id;
+                              bool isSelected = _selectedSlotId == slot.id;
 
                               return GestureDetector(
                                 onTap: canSelect
-                                    ? () => setState(
-                                        () => _selectedSlotId = slot.id,
-                                      )
+                                    ? () => setState(() => _selectedSlotId = slot.id)
                                     : null,
                                 child: Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(12),
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: _selectedSlotId == slot.id
-                                        ? const Color(
-                                            0xFF7C3AED,
-                                          ).withOpacity(0.3)
-                                        : const Color(0xFF2B2B36),
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: isSelected
+                                        ? const Color(0xFFFECF65).withOpacity(0.1)
+                                        : const Color(0xFF16151A),
+                                    borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
-                                      color: _selectedSlotId == slot.id
-                                          ? const Color(0xFF7C3AED)
-                                          : Colors.transparent,
+                                      color: isSelected ? const Color(0xFFFECF65) : Colors.white.withOpacity(0.05),
+                                      width: isSelected ? 1.5 : 1.0,
                                     ),
                                   ),
                                   child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        '${slot.startTime} - ${slot.endTime}',
-                                        style: TextStyle(
-                                          color: canSelect
-                                              ? Colors.white
-                                              : Colors.white38,
-                                        ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${slot.startTime} - ${slot.endTime}',
+                                            style: GoogleFonts.breeSerif(
+                                              color: canSelect ? Colors.white : Colors.white24,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            slot.unlimitedParticipants
+                                                ? 'Unlimited capacity'
+                                                : '${slot.availableParticipants} spots left',
+                                            style: GoogleFonts.breeSerif(
+                                              color: canSelect ? Colors.greenAccent : Colors.redAccent,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      if (_selectedSlotId == slot.id)
+                                      if (isSelected)
                                         const Icon(
                                           Icons.check_circle,
-                                          color: Color(0xFF7C3AED),
-                                          size: 20,
-                                        )
-                                      else if (!canSelect)
-                                        const Text(
-                                          'Full',
-                                          style: TextStyle(
-                                            color: Colors.redAccent,
-                                            fontSize: 12,
-                                          ),
+                                          color: Color(0xFFFECF65),
+                                          size: 24,
                                         ),
                                     ],
                                   ),
@@ -469,13 +487,11 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
                           );
                         },
                         loading: () => const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF7C3AED),
-                          ),
+                          child: CircularProgressIndicator(color: Color(0xFFFECF65)),
                         ),
-                        error: (_, __) => const Text(
+                        error: (_, __) => Text(
                           'Error loading slots',
-                          style: TextStyle(color: Colors.redAccent),
+                          style: GoogleFonts.breeSerif(color: Colors.redAccent),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -486,28 +502,32 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
 
               // Save Button
               SizedBox(
-                width: double.infinity,
+                height: 55,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFF7C3AED),
+                    backgroundColor: const Color(0xFFFECF65),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
+                    elevation: 0,
                   ),
                   onPressed: _isLoading ? null : () => _saveChanges(cartItemId),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 24,
+                          width: 24,
                           child: CircularProgressIndicator(
+                            color: Colors.black,
                             strokeWidth: 2,
-                            color: Colors.white,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Save Changes',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),

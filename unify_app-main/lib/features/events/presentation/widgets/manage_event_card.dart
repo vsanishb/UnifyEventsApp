@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../shared/widgets/r2_image_widget.dart';
+import '../../../../shared/widgets/app_cached_image.dart';
 import 'manage_event_modals.dart';
 import 'manage_event_sub_modals.dart';
+import '../providers/event_details_provider.dart';
 
 class ManageEventCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> event;
@@ -26,6 +27,7 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
 
   @override
   Widget build(BuildContext context) {
+    final constraintAsync = ref.watch(constraintProvider(widget.event['id'].toString()));
     final eventName = widget.event['name'] ?? 'Unnamed Event';
     final committee =
         widget.event['parent_committee']?.toString() ?? 'Main Committee';
@@ -55,21 +57,14 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
         curve: Curves.easeOutCubic,
         transform: Matrix4.identity()..translate(0.0, _isHovered ? -5.0 : 0.0),
         decoration: BoxDecoration(
-          color: const Color(0xFF13131D),
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF16151A),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: _isHovered
-                ? const Color(0xFF7C3AED).withOpacity(0.5)
-                : Colors.white.withOpacity(0.05),
+                ? const Color(0xFFFECF65).withOpacity(0.3)
+                : Colors.white.withOpacity(0.08),
+            width: 1.5,
           ),
-          boxShadow: [
-            if (_isHovered)
-              BoxShadow(
-                color: const Color(0xFF7C3AED).withOpacity(0.15),
-                blurRadius: 20,
-                spreadRadius: -5,
-              ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,9 +75,9 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                 height: 120,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
+                    top: Radius.circular(24),
                   ),
-                  child: R2ImageWidget(imageKey: imageKey, borderRadius: 0),
+                  child: AppCachedImage(imageKey: imageKey, borderRadius: 0),
                 ),
               ),
 
@@ -97,28 +92,32 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                          horizontal: 12,
+                          vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED).withOpacity(0.15),
+                          color: const Color(0xFFFECF65).withOpacity(0.08),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFFECF65).withOpacity(0.3),
+                            width: 1,
+                          ),
                         ),
                         child: Text(
                           committee,
                           style: const TextStyle(
-                            color: Color(0xFF38BDF8),
+                            color: Color(0xFFFECF65),
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       Row(
                         children: [
                           Text(
-                            '₹$price',
+                            price == 'FREE' || price == '0' ? 'FREE' : '₹$price',
                             style: const TextStyle(
-                              color: Colors.greenAccent,
+                              color: Color(0xFF10B981),
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -126,8 +125,8 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                           const SizedBox(width: 8),
                           Icon(
                             isExclusive ? Icons.lock : Icons.public,
-                            size: 14,
-                            color: isExclusive ? Colors.orange : Colors.white54,
+                            size: 16,
+                            color: isExclusive ? Colors.orange : Colors.white70,
                           ),
                         ],
                       ),
@@ -141,20 +140,58 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // STATUS INDICATORS
-                  Row(
+                   // STATUS INDICATORS
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _buildStatusChip(detailsId > 0, 'Details'),
-                      const SizedBox(width: 8),
                       _buildStatusChip(constraintId > 0, 'Constraints'),
-                      const SizedBox(width: 8),
                       _buildStatusChip(slotsCount > 0, 'Slots'),
                     ],
+                  ),
+
+                  constraintAsync.when(
+                    data: (constraint) {
+                      if (constraint == null) return const SizedBox();
+                      String label = 'Single Participant';
+                      if (constraint.bookingType == 'multiple') {
+                        if (constraint.fixed) {
+                          label = 'Multiple (Fixed Team Size of ${constraint.upperLimit})';
+                        } else {
+                          label = 'Multiple (Flexible Team Size: Min ${constraint.lowerLimit} - Max ${constraint.upperLimit})';
+                        }
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 14,
+                              color: Colors.white38,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Constraint: $label',
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox(),
+                    error: (_, __) => const SizedBox(),
                   ),
 
                   const SizedBox(height: 20),
@@ -162,71 +199,115 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                   const SizedBox(height: 12),
 
                   // ACTION BUTTONS GRID
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 12,
+                  Column(
                     children: [
-                      _buildActionButton(
-                        Icons.edit,
-                        'Edit Event',
-                        () => ManageEventModals.showEventModal(
-                          context,
-                          ref,
-                          event: widget.event,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.edit_outlined,
+                              'Edit Event',
+                              () => ManageEventModals.showEventModal(
+                                context,
+                                ref,
+                                event: widget.event,
+                              ),
+                              baseColor: const Color(0xFFFECF65),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.info_outline,
+                              'Details',
+                              () => ManageEventSubModals.showDetailsModal(
+                                context,
+                                ref,
+                                widget.event['id'],
+                              ),
+                              baseColor: Colors.white60,
+                            ),
+                          ),
+                        ],
                       ),
-                      _buildActionButton(
-                        Icons.info_outline,
-                        'Details',
-                        () => ManageEventSubModals.showDetailsModal(
-                          context,
-                          ref,
-                          widget.event['id'],
-                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.list_alt_outlined,
+                              'Constraints',
+                              () => ManageEventSubModals.showConstraintsModal(
+                                context,
+                                ref,
+                                widget.event['id'],
+                              ),
+                              baseColor: Colors.white60,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.access_time,
+                              'Slots',
+                              () => ManageEventSubModals.showSlotsModal(
+                                context,
+                                ref,
+                                widget.event['id'],
+                              ),
+                              baseColor: Colors.white60,
+                            ),
+                          ),
+                        ],
                       ),
-                      _buildActionButton(
-                        Icons.rule,
-                        'Constraints',
-                        () => ManageEventSubModals.showConstraintsModal(
-                          context,
-                          ref,
-                          widget.event['id'],
-                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.groups_outlined,
+                              'Attendance',
+                              () {
+                                /* Map to Attendance UI */
+                              },
+                              baseColor: const Color(0xFFFECF65),
+                            ),
+                          ),
+                          if (widget.isAdmin) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionButton(
+                                Icons.group_add_outlined,
+                                'Organisers',
+                                () => ManageEventModals.showOrganisersModal(
+                                  context,
+                                  ref,
+                                  widget.event,
+                                ),
+                                baseColor: const Color(0xFFF97316),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      _buildActionButton(
-                        Icons.schedule,
-                        'Slots',
-                        () => ManageEventSubModals.showSlotsModal(
-                          context,
-                          ref,
-                          widget.event['id'],
-                        ),
-                      ),
-                      _buildActionButton(Icons.group, 'Attendance', () {
-                        /* Map to Attendance UI */
-                      }),
-
                       if (widget.isAdmin) ...[
-                        _buildActionButton(
-                          Icons.admin_panel_settings,
-                          'Organisers',
-                          () => ManageEventModals.showOrganisersModal(
-                            context,
-                            ref,
-                            widget.event,
-                          ),
-                          isWarning: true,
-                        ),
-                        _buildActionButton(
-                          Icons.delete_outline,
-                          'Delete',
-                          () => ManageEventModals.showDeleteEventModal(
-                            context,
-                            ref,
-                            widget.event['id'],
-                            eventName,
-                          ),
-                          isDestructive: true,
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildActionButton(
+                                Icons.delete_outline,
+                                'Delete',
+                                () => ManageEventModals.showDeleteEventModal(
+                                  context,
+                                  ref,
+                                  widget.event['id'],
+                                  eventName,
+                                ),
+                                baseColor: const Color(0xFFEF4444),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -241,33 +322,33 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
   }
 
   Widget _buildStatusChip(bool isActive, String label) {
+    final Color chipColor = isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final IconData icon = isActive ? Icons.check_circle_outline : Icons.cancel_outlined;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isActive
-            ? Colors.green.withOpacity(0.15)
-            : Colors.red.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: chipColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isActive
-              ? Colors.green.withOpacity(0.5)
-              : Colors.red.withOpacity(0.5),
+          color: chipColor.withOpacity(0.6),
+          width: 1.5,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isActive ? Icons.check_circle : Icons.cancel,
-            size: 12,
-            color: isActive ? Colors.green : Colors.red,
+            icon,
+            size: 14,
+            color: chipColor,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              color: isActive ? Colors.green : Colors.red,
-              fontSize: 11,
+              color: chipColor,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -280,34 +361,32 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
     IconData icon,
     String label,
     VoidCallback onTap, {
-    bool isDestructive = false,
-    bool isWarning = false,
+    required Color baseColor,
   }) {
-    Color baseColor = isDestructive
-        ? Colors.redAccent
-        : (isWarning ? Colors.orange : Colors.white);
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: baseColor.withOpacity(0.1),
-          border: Border.all(color: baseColor.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(8),
+          color: baseColor.withOpacity(0.04),
+          border: Border.all(
+            color: baseColor.withOpacity(0.4),
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 14, color: baseColor),
-            const SizedBox(width: 6),
+            Icon(icon, size: 16, color: baseColor),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 color: baseColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],

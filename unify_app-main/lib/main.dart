@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'core/router/app_router.dart';
 
@@ -58,15 +59,28 @@ class MyApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         routerConfig: router,
         theme: ThemeData.dark().copyWith(
-          scaffoldBackgroundColor: const Color(0xFF0F0C29),
+          scaffoldBackgroundColor: const Color(0xFF0F0E11),
+          primaryColor: const Color(0xFFFECF65),
+          hintColor: Colors.white30,
+          textTheme: GoogleFonts.breeSerifTextTheme(ThemeData.dark().textTheme).apply(
+            bodyColor: Colors.white,
+            displayColor: Colors.white,
+          ),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.transparent,
             elevation: 0,
+            iconTheme: IconThemeData(color: Colors.white),
+          ),
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFECF65),
+            secondary: Color(0xFFFECF65),
+            background: Color(0xFF0F0E11),
+            surface: Color(0xFF16151A),
           ),
         ),
         builder: (context, child) {
           return Container(
-            color: const Color(0xFF0F0C29),
+            color: const Color(0xFF0F0E11),
             child: CyberGridBackground(child: child ?? const SizedBox()),
           );
         },

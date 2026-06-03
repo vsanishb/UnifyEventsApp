@@ -1,6 +1,7 @@
 class EventModel {
   final int id;
   final int? parentEventId;
+  final int? categoryId;
   final String title;
   final String description;
   final String? bannerImage;
@@ -10,6 +11,7 @@ class EventModel {
   EventModel({
     required this.id,
     this.parentEventId,
+    this.categoryId,
     required this.title,
     required this.description,
     this.bannerImage,
@@ -21,6 +23,7 @@ class EventModel {
     return EventModel(
       id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
       parentEventId: int.tryParse(json['parent_event']?.toString() ?? ''),
+      categoryId: int.tryParse(json['category']?.toString() ?? json['category_id']?.toString() ?? ''),
       title:
           json['title']?.toString() ??
           json['name']?.toString() ??

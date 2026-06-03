@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/sync/sync_service.dart';
 import 'scan_controller.dart';
@@ -91,17 +89,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with TickerProviderStat
         } else if (status == "forbidden") {
           showAccessDeniedModal();
         } else {
-          _resetWithDelay();
+          showInvalidQRModal();
         }
-      }
-    } on DioException catch (e) {
-      if (!mounted) return;
-      final data = e.response?.data;
-      if (e.response?.statusCode == 404 || (data is Map && data["status"] == "invalid")) {
-        showInvalidQRModal();
       } else {
-        _resetWithDelay();
+        showInvalidQRModal();
       }
+    } catch (_) {
+      if (!mounted) return;
+      showInvalidQRModal();
     }
   }
 
@@ -110,25 +105,20 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with TickerProviderStat
     showInvalidQRModal();
   }
 
-  void _resetWithDelay() {
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) resetScanner();
-    });
-  }
 
-  // --- UI MODALS ---
+  // --- UI MODALS REDESIGNED AS FULLSCREEN SCAFFOLD OVERLAYS ---
 
   void showInvalidQRModal() {
-    _showStatusModal(
+    _showStatusOverlay(
       icon: Icons.qr_code_scanner_rounded,
       iconColor: Colors.redAccent,
-      title: "Invalid QR",
+      title: "Invalid QR Code",
       subtitle: "This ticket is not recognized or may have been tampered with.",
     );
   }
 
   void showAccessDeniedModal() {
-    _showStatusModal(
+    _showStatusOverlay(
       icon: Icons.lock_person_rounded,
       iconColor: Colors.orange,
       title: "Access Denied",
@@ -137,7 +127,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with TickerProviderStat
   }
 
   void showAlreadyCheckedInModal(Map data) {
-    _showStatusModal(
+    _showStatusOverlay(
       icon: Icons.person_pin_circle_rounded,
       iconColor: Colors.blueAccent,
       title: "Already Checked In",
@@ -146,97 +136,275 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with TickerProviderStat
     );
   }
 
-  void showPreviewModal(Map<String, dynamic> data, String token) {
-    setState(() => isPreviewOpen = true);
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      backgroundColor: const Color(0xFF0F0F0F),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ✅ Fixed: Changed FontWeight.black to FontWeight.w900
-            const Text("PREVIEW CHECK-IN", style: TextStyle(color: Colors.white30, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 10)),
-            const SizedBox(height: 16),
-            Text(data["participant_name"] ?? "Guest", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 24, color: Colors.white)),
-            Text(data["event_name"] ?? "Event", style: const TextStyle(color: Color(0xFFF72585), fontWeight: FontWeight.bold)),
-            const Divider(height: 32, color: Colors.white10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.calendar_month, color: Colors.white54, size: 16),
-                const SizedBox(width: 8),
-                Text(data["slot"] ?? "TBA", style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              ],
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
-                minimumSize: const Size.fromHeight(55),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              ),
-              onPressed: () => confirmCheckIn(token),
-              child: const Text("CONFIRM ENTRY", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-            TextButton(
-              onPressed: () { Navigator.pop(context); resetScanner(); },
-              child: const Text("Cancel", style: TextStyle(color: Colors.white38)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showStatusModal({required IconData icon, required Color iconColor, required String title, required String subtitle, String? timing}) {
-    setState(() => isPreviewOpen = true);
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      backgroundColor: const Color(0xFF0F0F0F),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      builder: (_) => _BaseModal(
-        icon: icon,
-        iconColor: iconColor,
-        title: title,
-        subtitle: subtitle,
-        timing: timing,
-        buttonText: "CONTINUE SCANNING",
-        onPressed: () {
-          Navigator.pop(context);
-          resetScanner();
-        },
-      ),
-    );
-  }
-
   void showOfflineQueueModal() {
-    _showStatusModal(icon: Icons.cloud_off, iconColor: Colors.grey, title: "Offline Mode", subtitle: "Check-in saved locally. Syncing later.");
-  }
-
-  Future<void> confirmCheckIn(String token) async {
-    try {
-      final res = await ref.read(scanControllerProvider.notifier).checkIn(token);
-      Navigator.pop(context);
-      showSuccessModal(res);
-    } catch (e) {
-      Navigator.pop(context);
-      resetScanner();
-    }
+    _showStatusOverlay(
+      icon: Icons.cloud_off_rounded,
+      iconColor: Colors.grey,
+      title: "Offline Mode",
+      subtitle: "No active connection detected. Check-in saved locally and will sync once connection is restored.",
+    );
   }
 
   void showSuccessModal(Map data) {
-    _showStatusModal(
+    _showStatusOverlay(
       icon: Icons.check_circle_rounded,
       iconColor: Colors.greenAccent,
       title: "Access Granted",
       subtitle: data["participant_name"] ?? "Participant",
       timing: "Verified at ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}",
     );
+  }
+
+  void _showStatusOverlay({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    String? timing,
+  }) {
+    setState(() => isPreviewOpen = true);
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(),
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: iconColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        color: iconColor,
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.breeSerif(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      subtitle,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.breeSerif(
+                        color: Colors.white54,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (timing != null) ...[
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        ),
+                        child: Text(
+                          timing,
+                          style: GoogleFonts.breeSerif(
+                            color: const Color(0xFFFECF65),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFECF65),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          resetScanner();
+                        },
+                        child: Text(
+                          "CONTINUE SCANNING",
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  void showPreviewModal(Map<String, dynamic> data, String token) {
+    setState(() => isPreviewOpen = true);
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(),
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFECF65).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: Color(0xFFFECF65),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      "PREVIEW CHECK-IN",
+                      style: GoogleFonts.breeSerif(
+                        color: Colors.white30,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      data["participant_name"] ?? "Guest",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.breeSerif(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      data["event_name"] ?? "Event",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.breeSerif(
+                        color: const Color(0xFFFECF65),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.access_time_rounded, color: Colors.white54, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          data["slot"] ?? "TBA",
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFECF65),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          confirmCheckIn(token);
+                        },
+                        child: Text(
+                          "CONFIRM ENTRY",
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          resetScanner();
+                        },
+                        child: Text(
+                          "Cancel",
+                          style: GoogleFonts.breeSerif(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  Future<void> confirmCheckIn(String token) async {
+    try {
+      final res = await ref.read(scanControllerProvider.notifier).checkIn(token);
+      showSuccessModal(res);
+    } catch (e) {
+      resetScanner();
+    }
   }
 
   void resetScanner() {
@@ -265,17 +433,26 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with TickerProviderStat
             right: 0,
             child: Column(
               children: [
-                const Text(
+                Text(
                   "ENTRY SCANNER",
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 4),
+                  style: GoogleFonts.breeSerif(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    letterSpacing: 4,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(20)),
-                  child: const Text(
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: Text(
                     "Scan to check in participants",
-                    style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.breeSerif(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -285,60 +462,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with TickerProviderStat
           Center(
             child: CustomPaint(
               painter: QRScannerBorderPainter(
-                color: state.isSuccess ? Colors.greenAccent : const Color(0xFFF72585),
+                color: state.isSuccess ? Colors.greenAccent : const Color(0xFFFECF65),
               ),
               child: const SizedBox(width: 260, height: 260),
             ),
           ),
 
           if (state.isProcessing)
-            Container(color: Colors.black45, child: const Center(child: CircularProgressIndicator(color: Color(0xFF7C3AED)))),
-        ],
-      ),
-    );
-  }
-}
-
-class _BaseModal extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title, subtitle, buttonText;
-  final String? timing;
-  final VoidCallback onPressed;
-  
-  const _BaseModal({required this.icon, required this.iconColor, required this.title, required this.subtitle, this.timing, required this.buttonText, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: iconColor, size: 70),
-          const SizedBox(height: 20),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.white, letterSpacing: -0.5)),
-          const SizedBox(height: 10),
-          Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, fontSize: 15)),
-          if (timing != null) ...[
-            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
-              child: Text(timing!, style: const TextStyle(color: Color(0xFF4CC9F0), fontWeight: FontWeight.bold, fontSize: 13)),
+              color: Colors.black45,
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFECF65)),
+              ),
             ),
-          ],
-          const SizedBox(height: 32),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A1A1A),
-              minimumSize: const Size.fromHeight(55),
-              side: const BorderSide(color: Colors.white10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            ),
-            onPressed: onPressed,
-            child: Text(buttonText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
         ],
       ),
     );
@@ -366,7 +502,6 @@ class QRScannerBorderPainter extends CustomPainter {
   }
 
   @override
-  // ✅ Fixed: Cast oldDelegate to QRScannerBorderPainter
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     if (oldDelegate is QRScannerBorderPainter) {
       return oldDelegate.color != color;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/manage_events_provider.dart';
 
@@ -10,9 +11,11 @@ class ManageEventSubModals {
     WidgetRef ref,
     int eventId,
   ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _DetailsModal(eventId: eventId),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _DetailsModal(eventId: eventId),
+      ),
     );
   }
 
@@ -21,24 +24,26 @@ class ManageEventSubModals {
     WidgetRef ref,
     int eventId,
   ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _ConstraintsModal(eventId: eventId),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _ConstraintsModal(eventId: eventId),
+      ),
     );
   }
 
   static void showSlotsModal(BuildContext context, WidgetRef ref, int eventId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _SlotsListModal(eventId: eventId),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => _SlotsListModal(eventId: eventId),
+      ),
     );
   }
 }
 
 // --------------------------------------------------------------------------
-// EVENT DETAILS MODAL
+// EVENT DETAILS FULL SCREEN Scaffold
 // --------------------------------------------------------------------------
 class _DetailsModal extends ConsumerStatefulWidget {
   final int eventId;
@@ -60,6 +65,13 @@ class _DetailsModalState extends ConsumerState<_DetailsModal> {
   void initState() {
     super.initState();
     _fetchDetails();
+  }
+
+  @override
+  void dispose() {
+    venueCtrl.dispose();
+    aboutCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchDetails() async {
@@ -98,11 +110,37 @@ class _DetailsModalState extends ConsumerState<_DetailsModal> {
       initialDate: current ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFFECF65),
+              onPrimary: Colors.black,
+              surface: Color(0xFF16151A),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (date != null && mounted) {
       final time = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(current ?? DateTime.now()),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: Color(0xFFFECF65),
+                onPrimary: Colors.black,
+                surface: Color(0xFF16151A),
+                onSurface: Colors.white,
+              ),
+            ),
+            child: child!,
+          );
+        },
       );
       if (time != null && mounted) {
         setState(() {
@@ -124,186 +162,210 @@ class _DetailsModalState extends ConsumerState<_DetailsModal> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isFetching) {
-      return const AlertDialog(
-        backgroundColor: Color(0xFF1B1B26),
-        content: SizedBox(
-          height: 100,
-          child: Center(
-            child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
-          ),
-        ),
-      );
-    }
-
     final bool exists = _details != null;
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF1B1B26),
-      title: Text(
-        exists ? 'Edit Details' : 'Add Details',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      content: Container(
-        padding: const EdgeInsets.only(bottom: 20),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: venueCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Venue',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF0A0A0F),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: aboutCtrl,
-                maxLines: 3,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF0A0A0F),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                title: const Text(
-                  'Start Date & Time',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                subtitle: Text(
-                  startDateTime?.toString().split('.')[0] ?? 'Select...',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                trailing: const Icon(
-                  Icons.calendar_month,
-                  color: Color(0xFF7C3AED),
-                ),
-                onTap: () => _pickDateTime(true),
-              ),
-              ListTile(
-                title: const Text(
-                  'End Date & Time',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                subtitle: Text(
-                  endDateTime?.toString().split('.')[0] ?? 'Select...',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                trailing: const Icon(
-                  Icons.calendar_month,
-                  color: Color(0xFF7C3AED),
-                ),
-                onTap: () => _pickDateTime(false),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF7C3AED),
+        title: Text(
+          exists ? 'Edit Details' : 'Add Details',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
-          onPressed: _isLoading
-              ? null
-              : () async {
-                  setState(() => _isLoading = true);
-                  try {
-                    final payload = {
-                      "event": widget.eventId,
-                      "venue": venueCtrl.text,
-                      "description": aboutCtrl.text,
-                      if (startDateTime != null)
-                        "start_datetime": startDateTime!.toIso8601String(),
-                      if (endDateTime != null)
-                        "end_datetime": endDateTime!.toIso8601String(),
-                    };
-                    payload.removeWhere((k, v) => v == null || v == "");
-
-                    if (exists) {
-                      await ref
-                          .read(dioProvider)
-                          .patch(
-                            '/event-details/${_details!['id']}/',
-                            data: payload,
-                          );
-                    } else {
-                      await ref
-                          .read(dioProvider)
-                          .post('/event-details/', data: payload);
-                    }
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ref.invalidate(manageEventsProvider);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Details saved successfully'),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    String errMsg = e.toString();
-                    if (e is DioError)
-                      errMsg =
-                          e.response?.data?.toString() ??
-                          e.message ??
-                          "Unknown error";
-                    if (context.mounted)
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Failed: $errMsg',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    print("API ERROR: $errMsg");
-                  }
-                  if (mounted) setState(() => _isLoading = false);
-                },
-          child: _isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Save', style: TextStyle(color: Colors.white)),
         ),
-      ],
+        centerTitle: true,
+      ),
+      body: _isFetching
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65)))
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          children: [
+                            TextField(
+                              controller: venueCtrl,
+                              style: GoogleFonts.breeSerif(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Venue',
+                                labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                filled: true,
+                                fillColor: const Color(0xFF16151A),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            TextField(
+                              controller: aboutCtrl,
+                              maxLines: 4,
+                              style: GoogleFonts.breeSerif(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Description',
+                                labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                filled: true,
+                                fillColor: const Color(0xFF16151A),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            ListTile(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              tileColor: const Color(0xFF16151A),
+                              title: Text(
+                                'Start Date & Time',
+                                style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 12),
+                              ),
+                              subtitle: Text(
+                                startDateTime?.toString().split('.')[0] ?? 'Select...',
+                                style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 16),
+                              ),
+                              trailing: const Icon(
+                                Icons.calendar_month,
+                                color: Color(0xFFFECF65),
+                              ),
+                              onTap: () => _pickDateTime(true),
+                            ),
+                            const SizedBox(height: 16),
+                            ListTile(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              tileColor: const Color(0xFF16151A),
+                              title: Text(
+                                'End Date & Time',
+                                style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 12),
+                              ),
+                              subtitle: Text(
+                                endDateTime?.toString().split('.')[0] ?? 'Select...',
+                                style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 16),
+                              ),
+                              trailing: const Icon(
+                                Icons.calendar_month,
+                                color: Color(0xFFFECF65),
+                              ),
+                              onTap: () => _pickDateTime(false),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFECF65),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                setState(() => _isLoading = true);
+                                try {
+                                  final payload = {
+                                    "event": widget.eventId,
+                                    "venue": venueCtrl.text,
+                                    "description": aboutCtrl.text,
+                                    if (startDateTime != null)
+                                      "start_datetime": startDateTime!.toIso8601String(),
+                                    if (endDateTime != null)
+                                      "end_datetime": endDateTime!.toIso8601String(),
+                                  };
+                                  payload.removeWhere((k, v) => v == null || v == "");
+
+                                  if (exists) {
+                                    await ref
+                                        .read(dioProvider)
+                                        .patch(
+                                          '/event-details/${_details!['id']}/',
+                                          data: payload,
+                                        );
+                                  } else {
+                                    await ref
+                                        .read(dioProvider)
+                                        .post('/event-details/', data: payload);
+                                  }
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    ref.invalidate(manageEventsProvider);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Details saved successfully', style: GoogleFonts.breeSerif()),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed: $e', style: GoogleFonts.breeSerif()),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) setState(() => _isLoading = false);
+                                }
+                              },
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                              )
+                            : Text(
+                                'Save Details',
+                                style: GoogleFonts.breeSerif(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }
 
 // --------------------------------------------------------------------------
-// CONSTRAINTS MODAL
+// CONSTRAINTS FULL SCREEN Scaffold
 // --------------------------------------------------------------------------
 class _ConstraintsModal extends ConsumerStatefulWidget {
   final int eventId;
@@ -326,6 +388,13 @@ class _ConstraintsModalState extends ConsumerState<_ConstraintsModal> {
   void initState() {
     super.initState();
     _fetchConstraints();
+  }
+
+  @override
+  void dispose() {
+    lowerLimitCtrl.dispose();
+    upperLimitCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchConstraints() async {
@@ -353,190 +422,261 @@ class _ConstraintsModalState extends ConsumerState<_ConstraintsModal> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isFetching) {
-      return const AlertDialog(
-        backgroundColor: Color(0xFF1B1B26),
-        content: SizedBox(
-          height: 100,
-          child: Center(
-            child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
-          ),
-        ),
-      );
-    }
-
     final bool exists = _constraint != null;
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF1B1B26),
-      title: Text(
-        exists ? 'Edit Constraints' : 'Add Constraints',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          exists ? 'Edit Constraints' : 'Add Constraints',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
       ),
-      content: Container(
-        padding: const EdgeInsets.only(bottom: 20),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: bookingType,
-                dropdownColor: const Color(0xFF1B1B26),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Booking Type',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF0A0A0F),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'single', child: Text('Single')),
-                  DropdownMenuItem(value: 'multiple', child: Text('Multiple')),
-                ],
-                onChanged: (v) => setState(() => bookingType = v!),
-              ),
-              if (bookingType == 'multiple') ...[
-                const SizedBox(height: 12),
-                SwitchListTile(
-                  title: const Text(
-                    'Fixed Size Team',
-                    style: TextStyle(color: Colors.white54, fontSize: 13),
-                  ),
-                  activeColor: const Color(0xFF7C3AED),
-                  value: isFixed,
-                  onChanged: (v) => setState(() => isFixed = v),
-                ),
-                const SizedBox(height: 12),
-                Row(
+      body: _isFetching
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65)))
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!isFixed) ...[
-                      Expanded(
-                        child: TextField(
-                          controller: lowerLimitCtrl,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            labelText: 'Lower Limit',
-                            labelStyle: const TextStyle(color: Colors.white54),
-                            filled: true,
-                            fillColor: const Color(0xFF0A0A0F),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          children: [
+                            DropdownButtonFormField<String>(
+                              value: bookingType,
+                              dropdownColor: const Color(0xFF16151A),
+                              style: GoogleFonts.breeSerif(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Booking Type',
+                                labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                filled: true,
+                                fillColor: const Color(0xFF16151A),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                ),
+                              ),
+                              items: [
+                                DropdownMenuItem(value: 'single', child: Text('Single', style: GoogleFonts.breeSerif())),
+                                DropdownMenuItem(value: 'multiple', child: Text('Multiple', style: GoogleFonts.breeSerif())),
+                              ],
+                              onChanged: (v) => setState(() => bookingType = v!),
                             ),
-                          ),
+                            if (bookingType == 'multiple') ...[
+                              const SizedBox(height: 20),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF16151A),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                ),
+                                child: SwitchListTile(
+                                  title: Text(
+                                    'Fixed Size Team',
+                                    style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 15),
+                                  ),
+                                  activeColor: const Color(0xFFFECF65),
+                                  value: isFixed,
+                                  onChanged: (v) => setState(() => isFixed = v),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                               Row(
+                                children: [
+                                  if (!isFixed) ...[
+                                    Expanded(
+                                      child: TextField(
+                                        controller: lowerLimitCtrl,
+                                        keyboardType: TextInputType.number,
+                                        style: GoogleFonts.breeSerif(color: Colors.white),
+                                        decoration: InputDecoration(
+                                          labelText: 'Minimum Team Size',
+                                          labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                          filled: true,
+                                          fillColor: const Color(0xFF16151A),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                            borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                            borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                  ],
+                                  Expanded(
+                                    child: TextField(
+                                      controller: upperLimitCtrl,
+                                      keyboardType: TextInputType.number,
+                                      style: GoogleFonts.breeSerif(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: isFixed ? 'Fixed Team Size' : 'Maximum Team Size',
+                                        labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                                        filled: true,
+                                        fillColor: const Color(0xFF16151A),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(
-                      child: TextField(
-                        controller: upperLimitCtrl,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Upper Limit',
-                          labelStyle: const TextStyle(color: Colors.white54),
-                          filled: true,
-                          fillColor: const Color(0xFF0A0A0F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
+                    ),
+                    SizedBox(
+                      height: 55,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFECF65),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          elevation: 0,
                         ),
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                if (bookingType == 'multiple') {
+                                  if (isFixed) {
+                                    final val = int.tryParse(upperLimitCtrl.text);
+                                    if (val == null || val <= 0) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Please enter a valid fixed team size (> 0)')),
+                                      );
+                                      return;
+                                    }
+                                  } else {
+                                    final minVal = int.tryParse(lowerLimitCtrl.text);
+                                    final maxVal = int.tryParse(upperLimitCtrl.text);
+                                    if (minVal == null || minVal <= 0) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Please enter a valid minimum team size (> 0)')),
+                                      );
+                                      return;
+                                    }
+                                    if (maxVal == null || maxVal <= 0) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Please enter a valid maximum team size (> 0)')),
+                                      );
+                                      return;
+                                    }
+                                    if (minVal > maxVal) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Minimum team size cannot be greater than maximum team size')),
+                                      );
+                                      return;
+                                    }
+                                  }
+                                }
+                                setState(() => _isLoading = true);
+                                try {
+                                  final Map<String, dynamic> payload = {
+                                    "event": widget.eventId,
+                                    "booking_type": bookingType,
+                                    "fixed": bookingType == 'multiple' ? isFixed : false,
+                                  };
+
+                                  if (bookingType == 'multiple') {
+                                    if (isFixed) {
+                                      payload["upper_limit"] = int.parse(upperLimitCtrl.text);
+                                    } else {
+                                      payload["lower_limit"] = int.parse(lowerLimitCtrl.text);
+                                      payload["upper_limit"] = int.parse(upperLimitCtrl.text);
+                                    }
+                                  }
+
+                                  payload.removeWhere((k, v) => v == null || v == "");
+
+                                  if (exists) {
+                                    await ref
+                                        .read(dioProvider)
+                                        .put(
+                                          '/constraints/${_constraint!['id']}/',
+                                          data: payload,
+                                        );
+                                  } else {
+                                    await ref
+                                        .read(dioProvider)
+                                        .post('/constraints/', data: payload);
+                                  }
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    ref.invalidate(manageEventsProvider);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Constraints saved successfully', style: GoogleFonts.breeSerif()),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed: $e', style: GoogleFonts.breeSerif()),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) setState(() => _isLoading = false);
+                                }
+                              },
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                              )
+                            : Text(
+                                'Save Constraints',
+                                style: GoogleFonts.breeSerif(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF7C3AED),
-          ),
-          onPressed: _isLoading
-              ? null
-              : () async {
-                  setState(() => _isLoading = true);
-                  try {
-                    final Map<String, dynamic> payload = {
-                      "event": widget.eventId,
-                      "booking_type": bookingType,
-                      "fixed": bookingType == 'multiple' ? isFixed : false,
-                    };
-
-                    if (bookingType == 'multiple') {
-                      if (isFixed) {
-                        payload["upper_limit"] = int.parse(upperLimitCtrl.text);
-                      } else {
-                        payload["lower_limit"] = int.parse(lowerLimitCtrl.text);
-                        payload["upper_limit"] = int.parse(upperLimitCtrl.text);
-                      }
-                    }
-
-                    payload.removeWhere((k, v) => v == null || v == "");
-
-                    if (exists) {
-                      await ref
-                          .read(dioProvider)
-                          .put(
-                            '/constraints/${_constraint!['id']}/',
-                            data: payload,
-                          );
-                    } else {
-                      await ref
-                          .read(dioProvider)
-                          .post('/constraints/', data: payload);
-                    }
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ref.invalidate(manageEventsProvider);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Constraints saved')),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted)
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
-                  }
-                  if (mounted) setState(() => _isLoading = false);
-                },
-          child: _isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Save', style: TextStyle(color: Colors.white)),
-        ),
-      ],
+              ),
+            ),
     );
   }
 }
 
 // --------------------------------------------------------------------------
-// SLOTS MODAL (List + Add Form + Edit)
+// SLOTS FULL SCREEN LIST + FORM Scaffold
 // --------------------------------------------------------------------------
 class _SlotsListModal extends ConsumerStatefulWidget {
   final int eventId;
@@ -563,6 +703,12 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
     _fetchSlots();
   }
 
+  @override
+  void dispose() {
+    _capacityCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchSlots() async {
     try {
       final res = await ref
@@ -574,7 +720,6 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
         _slots = res.data['results'];
       }
     } catch (_) {
-      // Fallback if the endpoint is strictly /slots/ with ?event=
       try {
         final res2 = await ref
             .read(dioProvider)
@@ -591,9 +736,7 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
   void _editSlot(Map<String, dynamic> slot) {
     setState(() {
       _editingSlotId = slot['id'];
-      _selectedDate = slot['date'] != null
-          ? DateTime.tryParse(slot['date'])
-          : null;
+      _selectedDate = slot['date'] != null ? DateTime.tryParse(slot['date']) : null;
       _startTime = slot['start_time'] != null
           ? TimeOfDay(
               hour: int.tryParse(slot['start_time'].split(':')[0]) ?? 0,
@@ -660,27 +803,22 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
           SnackBar(
             content: Text(
               _editingSlotId == null ? 'Slot added' : 'Slot updated',
+              style: GoogleFonts.breeSerif(),
             ),
             backgroundColor: Colors.green,
           ),
         );
-        await _fetchSlots(); // Refresh local list
+        await _fetchSlots();
       }
     } catch (e) {
-      String errMsg = e.toString();
-      if (e is DioError)
-        errMsg = e.response?.data?.toString() ?? e.message ?? "Unknown error";
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed: $errMsg',
-              style: const TextStyle(fontSize: 12),
-            ),
-            backgroundColor: Colors.red,
+            content: Text('Failed: $e', style: GoogleFonts.breeSerif()),
+            backgroundColor: Colors.redAccent,
           ),
         );
-      print("API ERROR: $errMsg");
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -693,160 +831,127 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
         ref.invalidate(manageEventsProvider);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Slot deleted')));
-        await _fetchSlots(); // Refresh local list
+        ).showSnackBar(SnackBar(content: Text('Slot deleted', style: GoogleFonts.breeSerif())));
+        await _fetchSlots();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e', style: GoogleFonts.breeSerif())));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1B1B26),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Manage Slots',
+          style: GoogleFonts.breeSerif(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
       ),
-      child: _isFetching
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF7C3AED)),
-            )
-          : Container(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      body: _isFetching
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65)))
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Manage Slots',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    if (_slots.isEmpty)
-                      const Center(
-                        child: Text(
-                          "No Slots Configured",
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      )
-                    else
-                      Column(
-                        children: _slots
-                            .map(
-                              (slot) => Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0A0A0F),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          slot['date'] ?? 'N/A',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${slot['start_time']} - ${slot['end_time']}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        if (slot['unlimited_participants'] ==
-                                            true)
-                                          const Text(
-                                            'Unlimited Capacity',
-                                            style: TextStyle(
-                                              color: Color(0xFF38BDF8),
-                                              fontSize: 12,
-                                            ),
-                                          )
-                                        else
-                                          Text(
-                                            'Capacity: ${slot['max_participants'] ?? slot['available_participants']}',
-                                            style: const TextStyle(
-                                              color: Color(0xFF38BDF8),
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.white54,
-                                          ),
-                                          onPressed: () => _editSlot(slot),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.redAccent,
-                                          ),
-                                          onPressed: () =>
-                                              _deleteSlot(slot['id']),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                    // Slots List
+                    Expanded(
+                      child: _slots.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No slots configured yet.',
+                                style: GoogleFonts.breeSerif(color: Colors.white38),
                               ),
                             )
-                            .toList(),
-                      ),
-                    const Divider(color: Colors.white10),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _editingSlotId == null ? 'New Slot' : 'Edit Slot',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (_editingSlotId != null)
-                          TextButton(
-                            onPressed: _cancelEdit,
-                            child: const Text(
-                              'Cancel Edit',
-                              style: TextStyle(color: Colors.redAccent),
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: _slots.length,
+                              itemBuilder: (ctx, i) {
+                                final slot = _slots[i];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16151A),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              slot['date'] ?? 'N/A',
+                                              style: GoogleFonts.breeSerif(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${slot['start_time']} - ${slot['end_time']}',
+                                              style: GoogleFonts.breeSerif(
+                                                color: Colors.white70,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              slot['unlimited_participants'] == true
+                                                  ? 'Unlimited Capacity'
+                                                  : 'Capacity: ${slot['max_participants'] ?? slot['available_participants']}',
+                                              style: GoogleFonts.breeSerif(
+                                                color: const Color(0xFFFECF65),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
+                                            onPressed: () => _editSlot(slot),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                                            onPressed: () => _deleteSlot(slot['id']),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                      ],
+                    ),
+                    const Divider(color: Colors.white10, height: 24),
+
+                    // Slot Form
+                    Text(
+                      _editingSlotId == null ? 'Add Time Slot' : 'Edit Time Slot',
+                      style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -859,26 +964,35 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
                                 initialDate: _selectedDate ?? DateTime.now(),
                                 firstDate: DateTime(2000),
                                 lastDate: DateTime(2100),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.dark(
+                                        primary: Color(0xFFFECF65),
+                                        onPrimary: Colors.black,
+                                        surface: Color(0xFF16151A),
+                                        onSurface: Colors.white,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
                               if (d != null) setState(() => _selectedDate = d);
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 8,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0A0A0F),
-                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFF16151A),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
                               ),
                               child: Text(
                                 _selectedDate != null
                                     ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
                                     : "Select Date",
-                                style: TextStyle(
-                                  color: _selectedDate != null
-                                      ? Colors.white
-                                      : Colors.white54,
+                                style: GoogleFonts.breeSerif(
+                                  color: _selectedDate != null ? Colors.white : Colors.white54,
                                   fontSize: 13,
                                 ),
                               ),
@@ -896,22 +1010,16 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
                               if (t != null) setState(() => _startTime = t);
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 8,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0A0A0F),
-                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFF16151A),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
                               ),
                               child: Text(
-                                _startTime != null
-                                    ? _startTime!.format(context)
-                                    : "Start Time",
-                                style: TextStyle(
-                                  color: _startTime != null
-                                      ? Colors.white
-                                      : Colors.white54,
+                                _startTime != null ? _startTime!.format(context) : "Start Time",
+                                style: GoogleFonts.breeSerif(
+                                  color: _startTime != null ? Colors.white : Colors.white54,
                                   fontSize: 13,
                                 ),
                               ),
@@ -929,22 +1037,16 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
                               if (t != null) setState(() => _endTime = t);
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 8,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0A0A0F),
-                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFF16151A),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withOpacity(0.05)),
                               ),
                               child: Text(
-                                _endTime != null
-                                    ? _endTime!.format(context)
-                                    : "End Time",
-                                style: TextStyle(
-                                  color: _endTime != null
-                                      ? Colors.white
-                                      : Colors.white54,
+                                _endTime != null ? _endTime!.format(context) : "End Time",
+                                style: GoogleFonts.breeSerif(
+                                  color: _endTime != null ? Colors.white : Colors.white54,
                                   fontSize: 13,
                                 ),
                               ),
@@ -957,22 +1059,34 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildField(
-                            'Capacity',
-                            _capacityCtrl,
-                            isNum: true,
+                          child: TextField(
+                            controller: _capacityCtrl,
+                            keyboardType: TextInputType.number,
+                            style: GoogleFonts.breeSerif(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Capacity',
+                              labelStyle: GoogleFonts.breeSerif(color: Colors.white54),
+                              filled: true,
+                              fillColor: const Color(0xFF16151A),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: Color(0xFFFECF65)),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: SwitchListTile(
-                            title: const Text(
+                            title: Text(
                               'Unlimited',
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
+                              style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
                             ),
+                            activeColor: const Color(0xFFFECF65),
                             value: _isUnlimited,
                             onChanged: (v) => setState(() => _isUnlimited = v),
                             contentPadding: EdgeInsets.zero,
@@ -982,31 +1096,27 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
-                      width: double.infinity,
+                      height: 55,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: const Color(0xFFFECF65),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
+                          elevation: 0,
                         ),
                         onPressed: _isLoading ? null : _submitSlot,
                         child: _isLoading
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
+                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
                               )
                             : Text(
-                                _editingSlotId == null
-                                    ? 'Add Slot'
-                                    : 'Save Slot',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                _editingSlotId == null ? 'Add Slot' : 'Save Slot',
+                                style: GoogleFonts.breeSerif(
+                                  color: Colors.black,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1016,28 +1126,6 @@ class _SlotsListModalState extends ConsumerState<_SlotsListModal> {
                 ),
               ),
             ),
-    );
-  }
-
-  Widget _buildField(
-    String label,
-    TextEditingController ctrl, {
-    bool isNum = false,
-  }) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isNum ? TextInputType.number : TextInputType.text,
-      style: const TextStyle(color: Colors.white, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54, fontSize: 11),
-        filled: true,
-        fillColor: const Color(0xFF0A0A0F),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-      ),
     );
   }
 }
