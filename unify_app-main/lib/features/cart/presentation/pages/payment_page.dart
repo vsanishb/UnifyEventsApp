@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 
 import '../providers/cart_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../bookings/presentation/providers/bookings_provider.dart';
 
 class PaymentPage extends ConsumerStatefulWidget {
   final num totalAmount;
@@ -67,8 +68,9 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
 
       final bookingId = res.data["id"];
 
-      // Clear cart
+      // Clear cart and invalidate bookings list
       ref.invalidate(cartDataProvider);
+      ref.invalidate(myBookingsProvider);
 
       if (mounted) {
         context.go("/booking-success/$bookingId");
@@ -92,11 +94,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
 
   @override
   Widget build(BuildContext context) {
-    final taxes = widget.totalAmount * 0.18; // Dummy 18% tax
-    final convenienceFee = widget.totalAmount > 0
-        ? 50.0
-        : 0.0; // Flat fee only if amount exists
-    final grandTotal = widget.totalAmount + taxes + convenienceFee;
+    final grandTotal = widget.totalAmount;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -152,40 +150,6 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                         ),
                         Text(
                           '₹${widget.totalAmount.toStringAsFixed(2)}',
-                          style: GoogleFonts.breeSerif(
-                            color: Colors.white,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Taxes (18%)',
-                          style: GoogleFonts.breeSerif(color: Colors.white70, fontSize: 15),
-                        ),
-                        Text(
-                          '₹${taxes.toStringAsFixed(2)}',
-                          style: GoogleFonts.breeSerif(
-                            color: Colors.white,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Convenience Fee',
-                          style: GoogleFonts.breeSerif(color: Colors.white70, fontSize: 15),
-                        ),
-                        Text(
-                          '₹${convenienceFee.toStringAsFixed(2)}',
                           style: GoogleFonts.breeSerif(
                             color: Colors.white,
                             fontSize: 15,

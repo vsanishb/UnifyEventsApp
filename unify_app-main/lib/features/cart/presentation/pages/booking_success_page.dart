@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_cached_image.dart';
 import '../../../events/domain/models/event_model.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/presentation/providers/event_details_provider.dart';
+import '../../../../core/utils/datetime_utils.dart';
 
 class BookingSuccessPage extends ConsumerWidget {
   final String bookingId;
@@ -17,21 +18,16 @@ class BookingSuccessPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bookingsAsync = ref.watch(myBookingsProvider);
+    final bookingAsync = ref.watch(singleBookingProvider(bookingId));
     final eventsAsync = ref.watch(eventsProvider);
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: bookingsAsync.when(
-          data: (bookings) {
-            final booking = bookings.firstWhere(
-              (b) => b['id'].toString() == bookingId,
-              orElse: () => null,
-            );
-
-            final bookedEvents = booking?['booked_events'] as List<dynamic>? ?? [];
-            final isOffline = booking?['is_offline'] == true;
+        child: bookingAsync.when(
+          data: (booking) {
+            final bookedEvents = booking['booked_events'] as List<dynamic>? ?? [];
+            final isOffline = booking['is_offline'] == true;
             final events = eventsAsync.valueOrNull ?? [];
 
             // Get first booked event for viewing single ticket fallback
@@ -209,6 +205,33 @@ class BookingSuccessPage extends ConsumerWidget {
                                     ),
                                   ],
                                 ),
+                                const Divider(color: Colors.white10, height: 24),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.payment_rounded, color: Colors.white38, size: 16),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Total Paid',
+                                          style: GoogleFonts.breeSerif(
+                                            color: Colors.white38,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      '₹${(booking['total_amount'] ?? booking['grand_total'] ?? 0.0).toString()}',
+                                      style: GoogleFonts.breeSerif(
+                                        color: const Color(0xFFFECF65),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -321,7 +344,7 @@ class BookingSuccessPage extends ConsumerWidget {
                   style: GoogleFonts.breeSerif(color: Colors.white),
                 ),
                 TextButton(
-                  onPressed: () => ref.invalidate(myBookingsProvider),
+                  onPressed: () => ref.invalidate(singleBookingProvider(bookingId)),
                   child: Text(
                     'RETRY',
                     style: GoogleFonts.breeSerif(color: const Color(0xFFFECF65)),
@@ -383,6 +406,22 @@ class BookedEventSuccessCard extends ConsumerWidget {
       if (slotInfo.startTime != null && slotInfo.endTime != null) {
         eventTimeText = '${formatTimeHHMM(slotInfo.startTime)} - ${formatTimeHHMM(slotInfo.endTime)}';
       }
+    }
+
+    if ((eventDateText == 'TBA' || eventTimeText == 'TBA') && eventMatch != null) {
+      final detailsAsync = ref.watch(eventDetailsDataProvider(eventMatch.id.toString()));
+      final slotsAsync = ref.watch(slotsProvider(eventMatch.id.toString()));
+      final dt = EventDateTimeHelper.getEventDateTime(
+        serializerDate: eventMatch.date,
+        details: detailsAsync.valueOrNull,
+        slots: slotsAsync.valueOrNull,
+      );
+      if (eventDateText == 'TBA') {
+        eventDateText = dt['date']!;
+      }
+      if (eventTimeText == 'TBA') {
+        eventTimeText = dt['time']!;
+      }
     } else if (eventMatch != null && eventMatch.date != null) {
       eventDateText = eventMatch.date!;
     }
@@ -392,6 +431,8 @@ class BookedEventSuccessCard extends ConsumerWidget {
       final detailsAsync = ref.watch(eventDetailsDataProvider(eventMatch.id.toString()));
       venueText = detailsAsync.valueOrNull?['venue']?.toString() ?? 'TBA';
     }
+
+    final constraintAsync = ref.watch(constraintProvider(eventId));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -461,16 +502,97 @@ class BookedEventSuccessCard extends ConsumerWidget {
               ),
             ],
           ),
+          constraintAsync.when(
+            data: (c) {
+              if (c == null) return const SizedBox.shrink();
+              final constraintText = c.bookingType == 'single'
+                  ? 'Single Participant'
+                  : (c.fixed ? 'Multiple (Fixed)' : 'Multiple (Flexible)');
+              final limitsText = c.bookingType == 'single'
+                  ? '1'
+                  : (c.fixed ? '${c.upperLimit}' : '${c.lowerLimit} - ${c.upperLimit}');
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(color: Colors.white10, height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CONSTRAINT TYPE',
+                            style: GoogleFonts.breeSerif(
+                              color: Colors.white38,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            constraintText,
+                            style: GoogleFonts.breeSerif(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'TEAM SIZE LIMIT',
+                            style: GoogleFonts.breeSerif(
+                              color: Colors.white38,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            limitsText,
+                            style: GoogleFonts.breeSerif(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
           if (participants.isNotEmpty) ...[
             const Divider(color: Colors.white10, height: 24),
-            Text(
-              'ATTENDEES',
-              style: GoogleFonts.breeSerif(
-                color: Colors.white38,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'ATTENDEES',
+                  style: GoogleFonts.breeSerif(
+                    color: Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                Text(
+                  '${participants.length} Participant(s)',
+                  style: GoogleFonts.breeSerif(
+                    color: const Color(0xFFFECF65),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             for (final p in participants)

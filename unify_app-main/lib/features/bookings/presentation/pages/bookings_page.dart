@@ -5,10 +5,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/bookings_provider.dart';
 import '../../domain/models/slot_info.dart';
 import '../../../events/presentation/providers/events_provider.dart';
+import '../../../events/presentation/providers/event_details_provider.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
 
 class BookingsPage extends ConsumerStatefulWidget {
-  const BookingsPage({super.key});
+  final int? initialTab;
+  const BookingsPage({super.key, this.initialTab});
 
   @override
   ConsumerState<BookingsPage> createState() => _BookingsPageState();
@@ -16,6 +18,22 @@ class BookingsPage extends ConsumerStatefulWidget {
 
 class _BookingsPageState extends ConsumerState<BookingsPage> {
   int _selectedSegment = 0; // 0 = Upcoming, 1 = Past
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialTab != null) {
+      _selectedSegment = widget.initialTab!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant BookingsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != null && widget.initialTab != oldWidget.initialTab) {
+      _selectedSegment = widget.initialTab!;
+    }
+  }
 
   String formatTimeHHMM(String? timeStr) {
     if (timeStr == null || timeStr.isEmpty) return 'TBA';
@@ -383,22 +401,28 @@ class _BookingsPageState extends ConsumerState<BookingsPage> {
                                       const SizedBox(height: 8),
 
                                       // Venue
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              eventMatch != null ? (eventMatch.title.contains('UTSAV') ? 'BMSCE Campus, Main Stage' : 'BMSCE Innovation Center, Main Auditorium') : 'BMSCE Innovation Center',
-                                              style: GoogleFonts.breeSerif(
-                                                color: Colors.white70,
-                                                fontSize: 13,
+                                      Consumer(
+                                        builder: (context, ref, child) {
+                                          final detailsAsync = ref.watch(eventDetailsDataProvider(eventMatch?.id.toString() ?? ''));
+                                          final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'TBA';
+                                          return Row(
+                                            children: [
+                                              const Icon(Icons.location_on_outlined, color: Colors.white38, size: 14),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  venue,
+                                                  style: GoogleFonts.breeSerif(
+                                                    color: Colors.white70,
+                                                    fontSize: 13,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
                                               ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
+                                            ],
+                                          );
+                                        },
                                       ),
                                       const SizedBox(height: 12),
                                       const Divider(color: Colors.white10),

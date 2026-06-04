@@ -91,3 +91,12 @@ final myBookingsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async
     throw "Failed to parse bookings: $e";
   }
 });
+
+final singleBookingProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, bookingId) async {
+  final dio = ref.read(dioProvider);
+  final response = await dio.get('/bookings/$bookingId/');
+  if (response.data is Map<String, dynamic>) {
+    return response.data;
+  }
+  throw "Invalid booking detail response";
+});

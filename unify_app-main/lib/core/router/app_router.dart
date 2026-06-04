@@ -88,7 +88,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/events-list',
         builder: (context, state) {
           final type = state.uri.queryParameters['type'] ?? 'regular';
-          return EventsListPage(type: type);
+          final categoryIdStr = state.uri.queryParameters['categoryId'];
+          final categoryId = categoryIdStr != null ? int.tryParse(categoryIdStr) : null;
+          return EventsListPage(type: type, initialCategoryId: categoryId);
         },
       ),
 
@@ -158,7 +160,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/bookings',
-                builder: (context, state) => const BookingsPage(),
+                builder: (context, state) {
+                  final initialTabStr = state.uri.queryParameters['tab'];
+                  final initialTab = initialTabStr != null ? int.tryParse(initialTabStr) : null;
+                  return BookingsPage(initialTab: initialTab);
+                },
               ),
             ],
           ),

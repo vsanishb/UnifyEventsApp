@@ -10,45 +10,12 @@ import '../providers/manage_events_provider.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
 import '../widgets/add_to_cart_flow.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
+import '../../../../core/utils/datetime_utils.dart';
 
 class EventDetailPage extends ConsumerWidget {
   final String eventId;
 
   const EventDetailPage({super.key, required this.eventId});
-
-  String formatTimeString(String? timeStr) {
-    if (timeStr == null || timeStr.isEmpty) return 'TBA';
-    try {
-      final dt = DateTime.tryParse(timeStr);
-      if (dt != null) {
-        final hour = dt.hour;
-        final minute = dt.minute;
-        final period = hour >= 12 ? 'PM' : 'AM';
-        final h = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-        final m = minute.toString().padLeft(2, '0');
-        return '${h.toString().padLeft(2, '0')}:$m $period';
-      }
-    } catch (_) {}
-    return timeStr;
-  }
-
-  String formatEventDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return 'TBA';
-    try {
-      final dt = DateTime.tryParse(dateStr);
-      if (dt != null) {
-        final weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        final months = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        final weekday = weekDays[dt.weekday - 1];
-        final month = months[dt.month - 1];
-        return '$weekday, $month ${dt.day}';
-      }
-    } catch (_) {}
-    return dateStr;
-  }
 
   void _showAlreadyInCartOverlay(BuildContext context) {
     Navigator.of(context).push(
@@ -235,7 +202,7 @@ class EventDetailPage extends ConsumerWidget {
                 data: (details) {
                   final startStr = details['start_datetime']?.toString() ?? baseEvent.date;
                   final endStr = details['end_datetime']?.toString();
-                  final venueName = details['venue']?.toString() ?? 'BMSCE Innovation Center';
+                  final venueName = details['venue']?.toString() ?? 'Venue TBA';
 
                   String status = "Upcoming";
                   Color statusColor = const Color(0xFFFECF65); // gold for upcoming
@@ -260,7 +227,12 @@ class EventDetailPage extends ConsumerWidget {
                     }
                   }
 
-                  final timeFormatted = formatTimeString(startStr);
+                  final dt = EventDateTimeHelper.getEventDateTime(
+                    serializerDate: baseEvent.date,
+                    details: details,
+                    slots: slotsAsync.valueOrNull,
+                  );
+                  final timeFormatted = dt['time']!;
 
                   return Row(
                     children: [
@@ -337,13 +309,15 @@ class EventDetailPage extends ConsumerWidget {
               // Information Card
               detailsAsync.when(
                 data: (details) {
-                  final startStr = details['start_datetime']?.toString() ?? baseEvent.date;
-                  final endStr = details['end_datetime']?.toString();
-                  final dateFormatted = formatEventDate(startStr);
-                  final timeFormatted = formatTimeString(startStr);
-                  final endTimeFormatted = formatTimeString(endStr);
+                  final dt = EventDateTimeHelper.getEventDateTime(
+                    serializerDate: baseEvent.date,
+                    details: details,
+                    slots: slotsAsync.valueOrNull,
+                  );
+                  final dateFormatted = dt['date']!;
+                  final timeFormatted = dt['time']!;
                   final venueName = details['venue']?.toString() ?? 'TBA';
-                  final venueSub = details['location']?.toString() ?? 'Main Auditorium';
+                  final venueSub = details['location']?.toString() ?? '';
 
                   final price = baseEvent.price ?? 0;
                   final priceText = price > 0 ? '₹${price.toStringAsFixed(0)}' : 'Free';
@@ -369,7 +343,7 @@ class EventDetailPage extends ConsumerWidget {
                         _buildInfoRow(
                           icon: Icons.calendar_today_outlined,
                           title: dateFormatted,
-                          value: '$timeFormatted - $endTimeFormatted',
+                          value: timeFormatted,
                         ),
                         const Divider(color: Colors.white10, height: 24),
                         _buildInfoRow(

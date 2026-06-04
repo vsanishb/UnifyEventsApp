@@ -4,25 +4,42 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/domain/models/event_model.dart';
-import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../../shared/widgets/compact_event_row.dart';
 import '../../presentation/providers/manage_events_provider.dart';
 import '../providers/event_details_provider.dart';
+import '../../../home/presentation/widgets/advanced_filters_sheet.dart';
+import '../../../../core/utils/datetime_utils.dart';
+
 
 class EventsListPage extends ConsumerStatefulWidget {
   final String type;
+  final int? initialCategoryId;
 
-  const EventsListPage({super.key, required this.type});
+  const EventsListPage({super.key, required this.type, this.initialCategoryId});
 
   @override
   ConsumerState<EventsListPage> createState() => _EventsListPageState();
 }
 
 class _EventsListPageState extends ConsumerState<EventsListPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCategoryId != null) {
+      _selectedCategories.add(widget.initialCategoryId!);
+    }
+  }
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   String _priceFilter = "All"; // "All", "Free", "Paid"
   final List<int> _selectedCategories = [];
   final List<String> _selectedConstraints = [];
+  DateTime? _filterDate;
+  TimeOfDay? _filterStartTime;
+  TimeOfDay? _filterEndTime;
+  int? _filterFixedTeamSize;
+  int? _filterMinTeamSize;
+  int? _filterMaxTeamSize;
 
   @override
   void dispose() {
@@ -30,41 +47,17 @@ class _EventsListPageState extends ConsumerState<EventsListPage> {
     super.dispose();
   }
 
-  String get _title {
+  String _getTitle(List<dynamic> categories) {
     if (widget.type == 'phaseshift') return 'PhaseShift Events';
     if (widget.type == 'utsav') return 'Utsav Events';
+    if (_selectedCategories.length == 1) {
+      try {
+        final catId = _selectedCategories.first;
+        final cat = categories.firstWhere((c) => c['id'] == catId);
+        return "${cat['name']} Events";
+      } catch (_) {}
+    }
     return 'Regular Events';
-  }
-
-  String _formatEventDate(String? rawDate) {
-    if (rawDate == null || rawDate.isEmpty) return "Date TBA";
-    try {
-      final parsed = DateTime.parse(rawDate);
-      final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      return "${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}";
-    } catch (_) {
-      if (rawDate.contains(' ')) {
-        return rawDate.split(' ').first;
-      }
-      return rawDate;
-    }
-  }
-
-  String _formatEventTime(String? rawDate) {
-    if (rawDate == null || rawDate.isEmpty) return "Time TBA";
-    try {
-      final parsed = DateTime.parse(rawDate);
-      final hour = parsed.hour > 12 ? parsed.hour - 12 : (parsed.hour == 0 ? 12 : parsed.hour);
-      final period = parsed.hour >= 12 ? "PM" : "AM";
-      final minuteStr = parsed.minute.toString().padLeft(2, '0');
-      final hourStr = hour.toString().padLeft(2, '0');
-      return "$hourStr:$minuteStr $period";
-    } catch (_) {
-      if (rawDate.contains(' ')) {
-        return rawDate.split(' ').last;
-      }
-      return "08:00 AM";
-    }
   }
 
   List<EventModel> _getFilteredEvents(List<EventModel> events) {
@@ -86,165 +79,38 @@ class _EventsListPageState extends ConsumerState<EventsListPage> {
     }).toList();
   }
 
-  void _showAdvancedFilters(BuildContext context, dynamic categories) {
-    showModalBottomSheet(
+  void _showAdvancedFilters(BuildContext context, dynamic categories) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx2, setModalState) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF16151A),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx2).viewInsets.bottom + 40),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Advanced Filters",
-                        style: GoogleFonts.breeSerif(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          setModalState(() {
-                            _selectedCategories.clear();
-                            _selectedConstraints.clear();
-                          });
-                          setState(() {});
-                        },
-                        child: Text(
-                          "Clear All",
-                          style: GoogleFonts.breeSerif(
-                            color: const Color(0xFFFECF65),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    "EVENT CATEGORY",
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white38,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (categories is List)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: categories.map<Widget>((cat) {
-                        final catId = cat['id'] as int;
-                        final catName = cat['name'] as String;
-                        final isSel = _selectedCategories.contains(catId);
-                        return _buildFilterPill(catName, isSel, () {
-                          setModalState(() {
-                            if (isSel) {
-                              _selectedCategories.remove(catId);
-                            } else {
-                              _selectedCategories.add(catId);
-                            }
-                          });
-                          setState(() {});
-                        });
-                      }).toList(),
-                    )
-                  else
-                    const SizedBox(height: 40, child: Center(child: CircularProgressIndicator())),
-                  const SizedBox(height: 24),
-                  Text(
-                    "PARTICIPATION CONSTRAINT",
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white38,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildFilterPill("Single", _selectedConstraints.contains("single"), () {
-                        setModalState(() {
-                          if (_selectedConstraints.contains("single")) {
-                            _selectedConstraints.remove("single");
-                          } else {
-                            _selectedConstraints.add("single");
-                          }
-                        });
-                        setState(() {});
-                      }),
-                      _buildFilterPill("Multiple (Fixed Team Size)", _selectedConstraints.contains("fixed"), () {
-                        setModalState(() {
-                          if (_selectedConstraints.contains("fixed")) {
-                            _selectedConstraints.remove("fixed");
-                          } else {
-                            _selectedConstraints.add("fixed");
-                          }
-                        });
-                        setState(() {});
-                      }),
-                      _buildFilterPill("Multiple (Flexible Team Size)", _selectedConstraints.contains("flexible"), () {
-                        setModalState(() {
-                          if (_selectedConstraints.contains("flexible")) {
-                            _selectedConstraints.remove("flexible");
-                          } else {
-                            _selectedConstraints.add("flexible");
-                          }
-                        });
-                        setState(() {});
-                      }),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildFilterPill(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFECF65) : const Color(0xFF1E1D22),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFFECF65) : Colors.white.withOpacity(0.04),
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.breeSerif(
-            color: isSelected ? Colors.black : Colors.white70,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+      builder: (ctx) => AdvancedFiltersSheet(
+        selectedFests: const [],
+        selectedCategories: _selectedCategories,
+        selectedConstraints: _selectedConstraints,
+        categories: categories,
+        filterDate: _filterDate,
+        filterStartTime: _filterStartTime,
+        filterEndTime: _filterEndTime,
+        fixedTeamSize: _filterFixedTeamSize,
+        minTeamSize: _filterMinTeamSize,
+        maxTeamSize: _filterMaxTeamSize,
       ),
     );
+    if (result != null) {
+      setState(() {
+        _selectedCategories.clear();
+        _selectedCategories.addAll(result['selectedCategories'] as List<int>);
+        _selectedConstraints.clear();
+        _selectedConstraints.addAll(result['selectedConstraints'] as List<String>);
+        _filterDate = result['filterDate'] as DateTime?;
+        _filterStartTime = result['filterStartTime'] as TimeOfDay?;
+        _filterEndTime = result['filterEndTime'] as TimeOfDay?;
+        _filterFixedTeamSize = result['fixedTeamSize'] as int?;
+        _filterMinTeamSize = result['minTeamSize'] as int?;
+        _filterMaxTeamSize = result['maxTeamSize'] as int?;
+      });
+    }
   }
 
   Widget _buildPricePill(String label) {
@@ -284,292 +150,248 @@ class _EventsListPageState extends ConsumerState<EventsListPage> {
       body: SafeArea(
         child: categoriesAsync.when(
           data: (categories) {
-            return RefreshIndicator(
-              onRefresh: () async {
-                ref.invalidate(filteredEventsProvider(widget.type));
-                ref.invalidate(categoriesProvider);
-              },
-              color: const Color(0xFFFECF65),
-              backgroundColor: const Color(0xFF16151A),
-              child: filteredEventsAsync.when(
-                data: (rawEvents) {
-                  final filtered = _getFilteredEvents(rawEvents);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Search & Header bar (Back, Search, Filter) ─────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 20, 16),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => context.pop(),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16151A),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.04),
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (val) {
+                              setState(() => _searchQuery = val);
+                            },
+                            style: GoogleFonts.breeSerif(color: Colors.white),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.search, color: Colors.white30),
+                              hintText: "Search ${_getTitle(categories)}...",
+                              hintStyle: GoogleFonts.breeSerif(color: Colors.white24, fontSize: 14),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () => _showAdvancedFilters(context, categories),
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFECF65),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                  return CustomScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    slivers: [
-                      // ── Search & Header bar (Screenshot 3) ───────────────────────
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 16, 20, 16),
-                          child: Row(
+                // ── Filter Chips (All, Free, Paid) ───────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildPricePill("All"),
+                        const SizedBox(width: 8),
+                        _buildPricePill("Free"),
+                        const SizedBox(width: 8),
+                        _buildPricePill("Paid"),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Event vertical list with Pull-to-Refresh ──────────────────
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(filteredEventsProvider(widget.type));
+                      ref.invalidate(categoriesProvider);
+                    },
+                    color: const Color(0xFFFECF65),
+                    backgroundColor: const Color(0xFF16151A),
+                    child: filteredEventsAsync.when(
+                      data: (rawEvents) {
+                        final filtered = _getFilteredEvents(rawEvents);
+
+                        if (filtered.isEmpty) {
+                          return ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                                onPressed: () => context.pop(),
-                              ),
-                              Expanded(
-                                child: Container(
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF16151A),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.04),
-                                    ),
-                                  ),
-                                  child: TextField(
-                                    controller: _searchController,
-                                    onChanged: (val) {
-                                      setState(() => _searchQuery = val);
-                                    },
-                                    style: GoogleFonts.breeSerif(color: Colors.white),
-                                    decoration: InputDecoration(
-                                      prefixIcon: const Icon(Icons.search, color: Colors.white30),
-                                      hintText: "Search $_title...",
-                                      hintStyle: GoogleFonts.breeSerif(color: Colors.white24, fontSize: 14),
-                                      border: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _showAdvancedFilters(context, categories),
-                                child: Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFECF65),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(
-                                    Icons.tune_rounded,
-                                    color: Colors.black,
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.5,
+                                child: Center(
+                                  child: Text(
+                                    "No events found for ${_getTitle(categories)}",
+                                    style: GoogleFonts.breeSerif(color: Colors.white30),
                                   ),
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                      ),
+                          );
+                        }
 
-                      // Filter Pills
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _buildPricePill("All"),
-                                const SizedBox(width: 8),
-                                _buildPricePill("Free"),
-                                const SizedBox(width: 8),
-                                _buildPricePill("Paid"),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                        return ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final event = filtered[index];
+                            return Consumer(
+                              builder: (context, ref, child) {
+                                final constraintAsync = ref.watch(constraintProvider(event.id.toString()));
+                                final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
+                                final slotsAsync = ref.watch(slotsProvider(event.id.toString()));
 
-                      // Event vertical list
-                      if (filtered.isEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(
-                            child: Text(
-                              "No events found for $_title",
-                              style: GoogleFonts.breeSerif(color: Colors.white30),
-                            ),
-                          ),
-                        )
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final event = filtered[index];
-                                return Consumer(
-                                  builder: (context, ref, child) {
-                                    final constraintAsync = ref.watch(constraintProvider(event.id.toString()));
-                                    final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
+                                final details = detailsAsync.valueOrNull;
+                                final slots = slotsAsync.valueOrNull;
 
-                                    return constraintAsync.when(
-                                      data: (constraint) {
-                                        if (_selectedConstraints.isNotEmpty) {
-                                          bool matches = false;
-                                          final type = constraint?.bookingType ?? 'single';
-                                          final isFixed = constraint?.fixed ?? false;
-                                          for (var filter in _selectedConstraints) {
-                                            if (filter == 'single' && type == 'single') matches = true;
-                                            if (filter == 'fixed' && type == 'multiple' && isFixed) matches = true;
-                                            if (filter == 'flexible' && type == 'multiple' && !isFixed) matches = true;
-                                          }
-                                          if (!matches) {
-                                            return const SizedBox.shrink();
+                                final isDateOrTimeMatch = EventDateTimeHelper.passesDateTime(
+                                  serializerDate: event.date,
+                                  details: details,
+                                  slots: slots,
+                                  filterDate: _filterDate,
+                                  filterStartTime: _filterStartTime,
+                                  filterEndTime: _filterEndTime,
+                                );
+
+                                if (!isDateOrTimeMatch) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return constraintAsync.when(
+                                  data: (constraint) {
+                                    if (_selectedConstraints.isNotEmpty) {
+                                      bool matches = false;
+                                      final type = constraint?.bookingType ?? 'single';
+                                      final isFixed = constraint?.fixed ?? false;
+                                      for (var filter in _selectedConstraints) {
+                                        if (filter == 'single' && type == 'single') {
+                                          matches = true;
+                                        }
+                                        if (filter == 'fixed' && type == 'multiple' && isFixed) {
+                                          if (_filterFixedTeamSize != null) {
+                                            if (constraint != null && constraint.upperLimit == _filterFixedTeamSize) {
+                                              matches = true;
+                                            }
+                                          } else {
+                                            matches = true;
                                           }
                                         }
-                                        final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
-                                        return _buildEventCard(context, event, venue);
-                                      },
-                                      loading: () => const SizedBox(
-                                        height: 100,
-                                        child: Center(
-                                          child: CircularProgressIndicator(color: Color(0xFFFECF65)),
-                                        ),
-                                      ),
-                                      error: (_, __) {
-                                        if (_selectedConstraints.isNotEmpty) {
-                                          bool matches = _selectedConstraints.contains('single');
-                                          if (!matches) return const SizedBox.shrink();
+                                        if (filter == 'flexible' && type == 'multiple' && !isFixed) {
+                                          if (_filterMinTeamSize != null && _filterMaxTeamSize != null) {
+                                            if (constraint != null &&
+                                                constraint.lowerLimit <= _filterMinTeamSize! &&
+                                                constraint.upperLimit >= _filterMaxTeamSize!) {
+                                              matches = true;
+                                            }
+                                          } else {
+                                            matches = true;
+                                          }
                                         }
-                                        final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
-                                        return _buildEventCard(context, event, venue);
-                                      },
+                                      }
+                                      if (!matches) {
+                                        return const SizedBox.shrink();
+                                      }
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                      child: CompactEventRow(event: event),
+                                    );
+                                  },
+                                  loading: () => const SizedBox(
+                                    height: 100,
+                                    child: Center(
+                                      child: CircularProgressIndicator(color: Color(0xFFFECF65)),
+                                    ),
+                                  ),
+                                  error: (err, stack) {
+                                    if (_selectedConstraints.isNotEmpty) {
+                                      bool matches = _selectedConstraints.contains('single');
+                                      if (!matches) return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                      child: CompactEventRow(event: event),
                                     );
                                   },
                                 );
                               },
-                              childCount: filtered.length,
-                            ),
-                          ),
-                        ),
-                      const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-                    ],
-                  );
-                },
-                loading: () => const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
-                ),
-                error: (err, stack) => SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                            );
+                          },
+                        );
+                      },
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(color: Color(0xFFFECF65)),
+                      ),
+                      error: (err, stack) => ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: Colors.redAccent,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            err.toString(),
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.breeSerif(color: Colors.white70),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () => ref.invalidate(filteredEventsProvider(widget.type)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFECF65),
-                              foregroundColor: Colors.black,
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.5,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.redAccent,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    err.toString(),
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.breeSerif(color: Colors.white70),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => ref.invalidate(filteredEventsProvider(widget.type)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFECF65),
+                                      foregroundColor: Colors.black,
+                                    ),
+                                    child: Text("Retry", style: GoogleFonts.breeSerif(fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Text("Retry", style: GoogleFonts.breeSerif(fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             );
           },
           loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
           error: (e, __) => Center(child: Text("Error: $e", style: GoogleFonts.breeSerif(color: Colors.redAccent))),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventCard(BuildContext context, EventModel event, String venue) {
-    return GestureDetector(
-      onTap: () => context.push('/event-details/${event.id}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16151A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.04),
-          ),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 76,
-                height: 76,
-                child: AppCachedImage(
-                  imageKey: event.bannerImage,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    venue,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white30,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_rounded, size: 11, color: Colors.white30),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatEventDate(event.date),
-                        style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.access_time_rounded, size: 11, color: Colors.white30),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatEventTime(event.date),
-                        style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              event.price != null && event.price! > 0 ? "₹${event.price}" : "Free",
-              style: GoogleFonts.breeSerif(
-                color: const Color(0xFFFECF65),
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
         ),
       ),
     );

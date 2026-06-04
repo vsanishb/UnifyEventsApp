@@ -29,9 +29,12 @@ class _CartItemEditModalState extends ConsumerState<CartItemEditModal> {
     _deletedParticipants = [];
 
     // Initialize with current slot if any
-    if (widget.item['temp_timeslots'] != null &&
+    if (widget.item['temp_timeslot'] != null &&
+        widget.item['temp_timeslot']['slot'] != null) {
+      _selectedSlotId = widget.item['temp_timeslot']['slot'] as int?;
+    } else if (widget.item['temp_timeslots'] != null &&
         (widget.item['temp_timeslots'] as List).isNotEmpty) {
-      _selectedSlotId = (widget.item['temp_timeslots'] as List).first['slot'];
+      _selectedSlotId = (widget.item['temp_timeslots'] as List).first['slot'] as int?;
     }
 
     _loadParticipants();

@@ -7,11 +7,14 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../events/presentation/providers/events_provider.dart';
 import '../../../events/domain/models/event_model.dart';
 import '../../../../shared/widgets/app_cached_image.dart';
+import '../../../../shared/widgets/event_card.dart';
 import '../../../../core/services/r2_image_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../bookings/presentation/providers/bookings_provider.dart';
+import '../../../bookings/domain/models/slot_info.dart';
 import 'package:unify_events/features/events/presentation/providers/manage_events_provider.dart';
 import '../../../events/presentation/providers/event_details_provider.dart';
+import '../../../../core/utils/datetime_utils.dart';
 
 import '../widgets/home_painters.dart';
 import '../widgets/image_precache_handler.dart';
@@ -34,7 +37,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   final List<int> _selectedCategories = [];
   final List<String> _selectedConstraints = [];
   DateTime? _filterDate;
-  String _filterTimeSlot = "Anytime";
+  TimeOfDay? _filterStartTime;
+  TimeOfDay? _filterEndTime;
+  int? _filterFixedTeamSize;
+  int? _filterMinTeamSize;
+  int? _filterMaxTeamSize;
 
 
   @override
@@ -159,6 +166,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                         color: Colors.white,
                                       ),
                                     ),
+                                    const SizedBox(width: 6),
                                     Text(
                                       "Events",
                                       style: GoogleFonts.breeSerif(
@@ -216,8 +224,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   if (_isSearching) ...[
                                     const SizedBox(width: 12),
                                     GestureDetector(
-                                      onTap: () {
-                                        showModalBottomSheet(
+                                      onTap: () async {
+                                        final result = await showModalBottomSheet<Map<String, dynamic>>(
                                           context: context,
                                           backgroundColor: Colors.transparent,
                                           isScrollControlled: true,
@@ -226,13 +234,30 @@ class _HomePageState extends ConsumerState<HomePage> {
                                             selectedCategories: _selectedCategories,
                                             selectedConstraints: _selectedConstraints,
                                             categories: categories,
-                                            onChanged: () => setState(() {}),
                                             filterDate: _filterDate,
-                                            filterTimeSlot: _filterTimeSlot,
-                                            onDateChanged: (date) => setState(() => _filterDate = date),
-                                            onTimeSlotChanged: (slot) => setState(() => _filterTimeSlot = slot),
+                                            filterStartTime: _filterStartTime,
+                                            filterEndTime: _filterEndTime,
+                                            fixedTeamSize: _filterFixedTeamSize,
+                                            minTeamSize: _filterMinTeamSize,
+                                            maxTeamSize: _filterMaxTeamSize,
                                           ),
                                         );
+                                        if (result != null) {
+                                          setState(() {
+                                            _selectedFests.clear();
+                                            _selectedFests.addAll(result['selectedFests'] as List<String>);
+                                            _selectedCategories.clear();
+                                            _selectedCategories.addAll(result['selectedCategories'] as List<int>);
+                                            _selectedConstraints.clear();
+                                            _selectedConstraints.addAll(result['selectedConstraints'] as List<String>);
+                                            _filterDate = result['filterDate'] as DateTime?;
+                                            _filterStartTime = result['filterStartTime'] as TimeOfDay?;
+                                            _filterEndTime = result['filterEndTime'] as TimeOfDay?;
+                                            _filterFixedTeamSize = result['fixedTeamSize'] as int?;
+                                            _filterMinTeamSize = result['minTeamSize'] as int?;
+                                            _filterMaxTeamSize = result['maxTeamSize'] as int?;
+                                          });
+                                        }
                                       },
                                       child: Container(
                                         width: 50,
@@ -299,37 +324,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                                     builder: (context, ref, child) {
                                       final constraintAsync = ref.watch(constraintProvider(event.id.toString()));
                                       final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
-                                      final rawDateTime = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                      final slotsAsync = ref.watch(slotsProvider(event.id.toString()));
 
-                                      bool passesDateTime(String? raw) {
-                                        if (_filterDate == null && _filterTimeSlot == "Anytime") return true;
-                                        if (raw == null || raw.isEmpty) return false;
-                                        try {
-                                          final dt = DateTime.parse(raw);
-                                          if (_filterDate != null) {
-                                            if (dt.year != _filterDate!.year ||
-                                                dt.month != _filterDate!.month ||
-                                                dt.day != _filterDate!.day) {
-                                              return false;
-                                            }
-                                          }
-                                          if (_filterTimeSlot != "Anytime") {
-                                            final hour = dt.hour;
-                                            if (_filterTimeSlot == "Morning") {
-                                              if (hour < 8 || hour >= 12) return false;
-                                            } else if (_filterTimeSlot == "Afternoon") {
-                                              if (hour < 12 || hour >= 16) return false;
-                                            } else if (_filterTimeSlot == "Evening") {
-                                              if (hour < 16) return false;
-                                            }
-                                          }
-                                          return true;
-                                        } catch (_) {
-                                          return false;
-                                        }
-                                      }
+                                      final details = detailsAsync.valueOrNull;
+                                      final slots = slotsAsync.valueOrNull;
 
-                                      if (!passesDateTime(rawDateTime)) {
+                                      final isDateOrTimeMatch = EventDateTimeHelper.passesDateTime(
+                                        serializerDate: event.date,
+                                        details: details,
+                                        slots: slots,
+                                        filterDate: _filterDate,
+                                        filterStartTime: _filterStartTime,
+                                        filterEndTime: _filterEndTime,
+                                      );
+
+                                      if (!isDateOrTimeMatch) {
                                         return const SizedBox.shrink();
                                       }
 
@@ -340,20 +349,38 @@ class _HomePageState extends ConsumerState<HomePage> {
                                             final type = constraint?.bookingType ?? 'single';
                                             final isFixed = constraint?.fixed ?? false;
                                             for (var filter in _selectedConstraints) {
-                                              if (filter == 'single' && type == 'single') matches = true;
-                                              if (filter == 'fixed' && type == 'multiple' && isFixed) matches = true;
-                                              if (filter == 'flexible' && type == 'multiple' && !isFixed) matches = true;
+                                              if (filter == 'single' && type == 'single') {
+                                                matches = true;
+                                              }
+                                              if (filter == 'fixed' && type == 'multiple' && isFixed) {
+                                                if (_filterFixedTeamSize != null) {
+                                                  if (constraint != null && constraint.upperLimit == _filterFixedTeamSize) {
+                                                    matches = true;
+                                                  }
+                                                } else {
+                                                  matches = true;
+                                                }
+                                              }
+                                              if (filter == 'flexible' && type == 'multiple' && !isFixed) {
+                                                if (_filterMinTeamSize != null && _filterMaxTeamSize != null) {
+                                                  if (constraint != null &&
+                                                      constraint.lowerLimit <= _filterMinTeamSize! &&
+                                                      constraint.upperLimit >= _filterMaxTeamSize!) {
+                                                    matches = true;
+                                                  }
+                                                } else {
+                                                  matches = true;
+                                                }
+                                              }
                                             }
                                             if (!matches) {
                                               return const SizedBox.shrink();
                                             }
                                           }
-                                          final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
-                                          final rawDateTime = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                          final venue = details?['venue']?.toString() ?? 'Venue TBA';
                                           return HomeSearchResultCard(
                                             event: event,
                                             venue: venue,
-                                            rawDateTime: rawDateTime,
                                           );
                                         },
                                         loading: () => const SizedBox(
@@ -362,17 +389,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                                             child: CircularProgressIndicator(color: Color(0xFFFECF65)),
                                           ),
                                         ),
-                                        error: (_, __) {
+                                        error: (err, stack) {
                                           if (_selectedConstraints.isNotEmpty) {
                                             bool matches = _selectedConstraints.contains('single');
                                             if (!matches) return const SizedBox.shrink();
                                           }
-                                          final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
-                                          final rawDateTime = detailsAsync.valueOrNull?['start_datetime']?.toString();
+                                          final venue = details?['venue']?.toString() ?? 'Venue TBA';
                                           return HomeSearchResultCard(
                                             event: event,
                                             venue: venue,
-                                            rawDateTime: rawDateTime,
                                           );
                                         },
                                       );
@@ -395,20 +420,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         SliverToBoxAdapter(
                           child: SizedBox(
-                            height: 280, // Corrected scale to sit perfectly in layout aspect ratio
+                            height: 265,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: allEvents.length > 5 ? 5 : allEvents.length,
                               itemBuilder: (ctx, idx) {
                                 final event = allEvents[idx];
-                                return Consumer(
-                                  builder: (context, ref, child) {
-                                    final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
-                                    final venue = detailsAsync.valueOrNull?['venue']?.toString() ?? 'Venue TBA';
-                                    final rawDate = detailsAsync.valueOrNull?['start_datetime']?.toString();
-                                    return _buildFeaturedCard(context, event, venue, rawDate);
-                                  },
+                                return EventCard(
+                                  event: event,
+                                  isFeatured: true,
                                 );
                               },
                             ),
@@ -486,24 +507,24 @@ class _HomePageState extends ConsumerState<HomePage> {
                           return [
                             SliverToBoxAdapter(
                               child: _buildSectionHeader("$catName Events", () {
-                                context.push('/events-list?type=regular');
+                                setState(() {
+                                  _isSearching = true;
+                                  _selectedCategories.clear();
+                                  _selectedCategories.add(catId);
+                                });
                               }),
                             ),
                             SliverToBoxAdapter(
                               child: SizedBox(
-                                height: 230,
+                                height: 265,
                                 child: ListView.builder(
                                   scrollDirection: Axis.horizontal,
                                   padding: const EdgeInsets.symmetric(horizontal: 16),
                                   itemCount: catEvents.length,
                                   itemBuilder: (ctx, idx) {
                                     final event = catEvents[idx];
-                                    return Consumer(
-                                      builder: (context, ref, child) {
-                                        final detailsAsync = ref.watch(eventDetailsDataProvider(event.id.toString()));
-                                        final rawDate = detailsAsync.valueOrNull?['start_datetime']?.toString();
-                                        return _buildCategoryEventCard(context, event, rawDate);
-                                      },
+                                    return EventCard(
+                                      event: event,
                                     );
                                   },
                                 ),
@@ -515,12 +536,114 @@ class _HomePageState extends ConsumerState<HomePage> {
                         // 4. My Bookings Section
                         ...bookingsAsync.when(
                           data: (bookings) {
-                            if (bookings.isEmpty) return [];
-                            final displayCount = bookings.length > 2 ? 2 : bookings.length;
+                            // flatMap booking orders to individual booked events
+                            final List<Map<String, dynamic>> bookedEvents = [];
+                            for (var booking in bookings) {
+                              final items = booking['booked_events'] as List<dynamic>? ?? [];
+                              for (var item in items) {
+                                bookedEvents.add({
+                                  ...item,
+                                  'booking_id': booking['id'],
+                                  'booking_reference': '#EVT-${booking['id']}',
+                                  'total_amount': booking['total_amount'],
+                                  'is_offline': booking['is_offline'],
+                                });
+                              }
+                            }
+
+                            // Filter into upcoming based on date (date >= today)
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+
+                            final upcoming = bookedEvents.where((e) {
+                              final slotInfo = SlotInfo.tryParse(e['slot_info']);
+                              if (slotInfo?.date == null) return true; // Default to upcoming if no date
+                              final eventDate = DateTime.tryParse(slotInfo!.date!);
+                              if (eventDate == null) return true;
+                              return !eventDate.isBefore(today);
+                            }).toList();
+
+                            // Sort by nearest event date
+                            upcoming.sort((a, b) {
+                              final slotA = SlotInfo.tryParse(a['slot_info']);
+                              final slotB = SlotInfo.tryParse(b['slot_info']);
+                              if (slotA?.date == null && slotB?.date == null) return 0;
+                              if (slotA?.date == null) return 1;
+                              if (slotB?.date == null) return -1;
+                              final dateA = DateTime.tryParse(slotA!.date!);
+                              final dateB = DateTime.tryParse(slotB!.date!);
+                              if (dateA == null && dateB == null) return 0;
+                              if (dateA == null) return 1;
+                              if (dateB == null) return -1;
+                              return dateA.compareTo(dateB);
+                            });
+
+                            // Display maximum 3 cards
+                            final displayEvents = upcoming.take(3).toList();
+
+                            if (displayEvents.isEmpty) {
+                              return [
+                                SliverToBoxAdapter(
+                                  child: _buildSectionHeader("My Bookings", () {
+                                    context.go('/bookings?tab=0');
+                                  }),
+                                ),
+                                SliverToBoxAdapter(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16151A),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.04),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_today_outlined,
+                                          color: Colors.white24,
+                                          size: 40,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          "No upcoming events yet",
+                                          style: GoogleFonts.breeSerif(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          "Explore events and reserve your first pass.",
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.breeSerif(
+                                            color: Colors.white38,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ];
+                            }
+
+                            final displayBookings = displayEvents.map((e) {
+                              return {
+                                'id': e['booking_id'],
+                                'booked_events': [e],
+                                'line_total': e['total_amount'] ?? 0.0,
+                              };
+                            }).toList();
+
                             return [
                               SliverToBoxAdapter(
                                 child: _buildSectionHeader("My Bookings", () {
-                                  // Navigate to bookings branch
+                                  context.go('/bookings?tab=0');
                                 }),
                               ),
                               SliverPadding(
@@ -528,10 +651,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 sliver: SliverList(
                                   delegate: SliverChildBuilderDelegate(
                                     (ctx, idx) {
-                                      final b = bookings[idx];
+                                      final b = displayBookings[idx];
                                       return _buildBookingCard(context, b, allEvents);
                                     },
-                                    childCount: displayCount,
+                                    childCount: displayBookings.length,
                                   ),
                                 ),
                               ),
@@ -546,29 +669,45 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ],
                   );
                 },
-                loading: () => const SliverFillRemaining(
+                loading: () => const CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
+                    ),
+                  ],
+                ),
+                error: (e, __) => CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Text(
+                          "Error fetching events: $e",
+                          style: GoogleFonts.breeSerif(color: Colors.redAccent),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+            loading: () => const CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
                 ),
-                error: (e, __) => SliverFillRemaining(
+              ],
+            ),
+            error: (e, __) => CustomScrollView(
+              slivers: [
+                SliverFillRemaining(
                   child: Center(
                     child: Text(
-                      "Error fetching events: $e",
+                      "Error fetching categories: $e",
                       style: GoogleFonts.breeSerif(color: Colors.redAccent),
                     ),
                   ),
                 ),
-              );
-            },
-            loading: () => const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(color: Color(0xFFFECF65))),
-            ),
-            error: (e, __) => SliverFillRemaining(
-              child: Center(
-                child: Text(
-                  "Error fetching categories: $e",
-                  style: GoogleFonts.breeSerif(color: Colors.redAccent),
-                ),
-              ),
+              ],
             ),
           ),
         ),
@@ -636,215 +775,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildFeaturedCard(BuildContext context, EventModel event, String venue, String? rawDate) {
-    return GestureDetector(
-      onTap: () => context.push('/event-details/${event.id}'),
-      child: Container(
-        width: 290,
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16151A),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.04),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Image with Featured Pill
-            SizedBox(
-              height: 165, // Card constraints altered to achieve matching sizing from screenshot UI
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: AppCachedImage(
-                      imageKey: event.bannerImage,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFECF65),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        "FEATURED",
-                        style: GoogleFonts.breeSerif(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Text Content
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFFFECF65)),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          venue,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded, size: 13, color: Colors.white30),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatEventDate(rawDate),
-                            style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 11),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.access_time_rounded, size: 13, color: Colors.white30),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatEventTime(rawDate),
-                            style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        event.price != null && event.price! > 0 ? "₹${event.price!.toStringAsFixed(0)}" : "Free",
-                        style: GoogleFonts.breeSerif(
-                          color: const Color(0xFFFECF65),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildCategoryEventCard(BuildContext context, EventModel event, String? rawDate) {
-    return GestureDetector(
-      onTap: () => context.push('/event-details/${event.id}'),
-      child: Container(
-        width: 170,
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF16151A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.04),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: AppCachedImage(
-                  imageKey: event.bannerImage,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_rounded, size: 10, color: Colors.white30),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          _formatEventDate(rawDate),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 9),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time_rounded, size: 10, color: Colors.white30),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          _formatEventTime(rawDate),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.breeSerif(color: Colors.white38, fontSize: 9),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    event.price != null && event.price! > 0 ? "₹${event.price!.toStringAsFixed(0)}" : "Free",
-                    style: GoogleFonts.breeSerif(
-                      color: const Color(0xFFFECF65),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildParentCard(
     BuildContext context,

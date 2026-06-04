@@ -235,8 +235,7 @@ class _CartPageState extends ConsumerState<CartPage> {
           return sum + (count as int);
         });
 
-        final serviceFee = subtotal * 0.04;
-        final grandTotal = subtotal + serviceFee;
+        final grandTotal = subtotal;
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -376,27 +375,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'Service Fee (4%)',
-                                          style: GoogleFonts.breeSerif(
-                                            color: Colors.white70,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        Text(
-                                          '₹${serviceFee.toStringAsFixed(2)}',
-                                          style: GoogleFonts.breeSerif(
-                                            color: Colors.white,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+
                                     const Divider(color: Colors.white10, height: 28),
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -718,235 +697,140 @@ class CartItemCard extends ConsumerWidget {
             width: 1.5,
           ),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                width: 80,
-                height: 80,
-                child: AppCachedImage(
-                  imageKey: imageKey,
-                  borderRadius: 16,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // Main metadata panel wrapper
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    eventName,
-                    style: GoogleFonts.breeSerif(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: AppCachedImage(
+                      imageKey: imageKey,
+                      borderRadius: 16,
+                      fit: BoxFit.cover,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                ),
+                const SizedBox(width: 16),
 
-                  // Calendar row with overflow defenses
-                  Row(
+                // Main metadata panel wrapper
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.calendar_today_outlined, size: 14, color: Colors.white30),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          dateText,
-                          style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        eventName,
+                        style: GoogleFonts.breeSerif(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
+                      const SizedBox(height: 8),
 
-                  // Location row with overflow defenses
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: Colors.white30),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          venueText,
-                          style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Time row with overflow defenses
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time, size: 14, color: Colors.white30),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          timeText,
-                          style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Passes Count row
-                  Row(
-                    children: [
-                      const Icon(Icons.people_outline, size: 14, color: Colors.white30),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '$bookingsCount ${bookingsCount == 1 ? 'pass' : 'passes'}',
-                          style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  constraintAsync.when(
-                    data: (constraint) {
-                      if (constraint == null) return const SizedBox();
-                      String label = "Single Participant";
-                      if (constraint.bookingType == 'multiple') {
-                        if (constraint.fixed) {
-                          label = "Multiple (Fixed: ${constraint.upperLimit})";
-                        } else {
-                          label = "Multiple (Team: ${constraint.lowerLimit}-${constraint.upperLimit})";
-                        }
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline_rounded, size: 14, color: Colors.white30),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                label,
-                                style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Actions & pricing row wrapper
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '₹${itemTotal.toStringAsFixed(2)}',
-                          style: GoogleFonts.breeSerif(
-                            color: const Color(0xFFFECF65),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                      // Calendar row with overflow defenses
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2.0),
+                            child: Icon(Icons.calendar_today_outlined, size: 14, color: Colors.white30),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              dateText,
+                              style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 6),
 
-                      // Quantity Pill Selector Box
+                      // Location row with overflow defenses
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2.0),
+                            child: Icon(Icons.location_on_outlined, size: 14, color: Colors.white30),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              venueText,
+                              style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Time row with overflow defenses
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2.0),
+                            child: Icon(Icons.access_time, size: 14, color: Colors.white30),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              timeText,
+                              style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Passes Count row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2.0),
+                            child: Icon(Icons.people_outline, size: 14, color: Colors.white30),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$bookingsCount ${bookingsCount == 1 ? 'pass' : 'passes'}',
+                              style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
                       constraintAsync.when(
                         data: (constraint) {
                           if (constraint == null) return const SizedBox();
-                          final bool isFixed = constraint.fixed;
-                          final bool isSingle = constraint.bookingType == 'single';
-
-                          final bool canDecrement = !isSingle && !isFixed && bookingsCount > constraint.lowerLimit;
-                          final bool canIncrement = !isSingle && !isFixed && bookingsCount < constraint.upperLimit;
-
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E1D24),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
+                          String label = "Single Participant";
+                          if (constraint.bookingType == 'multiple') {
+                            if (constraint.fixed) {
+                              label = "Multiple (Fixed: ${constraint.upperLimit})";
+                            } else {
+                              label = "Multiple (Team: ${constraint.lowerLimit}-${constraint.upperLimit})";
+                            }
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6.0),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                InkWell(
-                                  onTap: canDecrement
-                                      ? () async {
-                                          final newCount = bookingsCount - 1;
-                                          await ref.read(cartActionProvider).updateCartItem(itemId, {
-                                            'participants_count': newCount,
-                                          });
-                                          final bookings = tempBookingsAsync.valueOrNull ?? [];
-                                          if (bookings.isNotEmpty) {
-                                            await ref.read(cartActionProvider).removeParticipant(bookings.last['id']);
-                                          }
-                                          ref.invalidate(cartDataProvider);
-                                          ref.invalidate(tempBookingsProvider(itemId));
-                                        }
-                                      : null,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Icon(
-                                      Icons.remove,
-                                      size: 16,
-                                      color: canDecrement ? const Color(0xFFFECF65) : Colors.white24,
-                                    ),
-                                  ),
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2.0),
+                                  child: Icon(Icons.info_outline_rounded, size: 14, color: Colors.white30),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$bookingsCount',
-                                  style: GoogleFonts.breeSerif(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: canIncrement
-                                      ? () async {
-                                          final newCount = bookingsCount + 1;
-                                          await ref.read(cartActionProvider).updateCartItem(itemId, {
-                                            'participants_count': newCount,
-                                          });
-                                          await ref.read(cartActionProvider).addParticipant({
-                                            'cart_item': itemId,
-                                            'name': '',
-                                            'email': '',
-                                            'phone': '',
-                                          });
-                                          ref.invalidate(cartDataProvider);
-                                          ref.invalidate(tempBookingsProvider(itemId));
-                                        }
-                                      : null,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Icon(
-                                      Icons.add,
-                                      size: 16,
-                                      color: canIncrement ? const Color(0xFFFECF65) : Colors.white24,
-                                    ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    label,
+                                    style: GoogleFonts.breeSerif(color: Colors.white54, fontSize: 13),
                                   ),
                                 ),
                               ],
@@ -958,16 +842,122 @@ class CartItemCard extends ConsumerWidget {
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                  onPressed: () async {
+                    await ref.read(cartActionProvider).removeCartItem(itemId);
+                    ref.invalidate(cartDataProvider);
+                  },
+                ),
+              ],
             ),
+            const SizedBox(height: 16),
 
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white54, size: 20),
-              onPressed: () async {
-                await ref.read(cartActionProvider).removeCartItem(itemId);
-                ref.invalidate(cartDataProvider);
-              },
+            // Actions & pricing row wrapper
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '₹${itemTotal.toStringAsFixed(2)}',
+                  style: GoogleFonts.breeSerif(
+                    color: const Color(0xFFFECF65),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Quantity Pill Selector Box
+                constraintAsync.when(
+                  data: (constraint) {
+                    if (constraint == null) return const SizedBox();
+                    final bool isFixed = constraint.fixed;
+                    final bool isSingle = constraint.bookingType == 'single';
+
+                    final bool canDecrement = !isSingle && !isFixed && bookingsCount > constraint.lowerLimit;
+                    final bool canIncrement = !isSingle && !isFixed && bookingsCount < constraint.upperLimit;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1D24),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: canDecrement
+                                ? () async {
+                                    final newCount = bookingsCount - 1;
+                                    await ref.read(cartActionProvider).updateCartItem(itemId, {
+                                      'participants_count': newCount,
+                                    });
+                                    final bookings = tempBookingsAsync.valueOrNull ?? [];
+                                    if (bookings.isNotEmpty) {
+                                      await ref.read(cartActionProvider).removeParticipant(bookings.last['id']);
+                                    }
+                                    ref.invalidate(cartDataProvider);
+                                    ref.invalidate(tempBookingsProvider(itemId));
+                                  }
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.remove,
+                                size: 16,
+                                color: canDecrement ? const Color(0xFFFECF65) : Colors.white24,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$bookingsCount',
+                            style: GoogleFonts.breeSerif(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: canIncrement
+                                ? () async {
+                                    final newCount = bookingsCount + 1;
+                                    await ref.read(cartActionProvider).updateCartItem(itemId, {
+                                      'participants_count': newCount,
+                                    });
+                                    await ref.read(cartActionProvider).addParticipant({
+                                      'cart_item': itemId,
+                                      'name': '',
+                                      'email': '',
+                                      'phone': '',
+                                    });
+                                    ref.invalidate(cartDataProvider);
+                                    ref.invalidate(tempBookingsProvider(itemId));
+                                  }
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.add,
+                                size: 16,
+                                color: canIncrement ? const Color(0xFFFECF65) : Colors.white24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox(),
+                  error: (_, __) => const SizedBox(),
+                ),
+              ],
             ),
           ],
         ),

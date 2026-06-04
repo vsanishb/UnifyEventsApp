@@ -407,7 +407,7 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    _getDateText(widget.bookedEvent['slot_info']),
+                                    _getDateText(widget.bookedEvent['slot_info'], eventDetailsAsync.valueOrNull),
                                     style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 10),
@@ -417,7 +417,7 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    _getTimeText(widget.bookedEvent['slot_info']),
+                                    _getTimeText(widget.bookedEvent['slot_info'], eventDetailsAsync.valueOrNull),
                                     style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -436,7 +436,7 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard> {
                                   const SizedBox(height: 2),
                                   eventDetailsAsync.when(
                                     data: (details) => Text(
-                                      '${details['venue']?.toString() ?? 'TBA'}\n${details['location']?.toString() ?? 'Main Auditorium'}',
+                                      '${details['venue']?.toString() ?? 'TBA'}${details['location'] != null && details['location'].toString().isNotEmpty ? '\n${details['location']}' : ''}',
                                       style: GoogleFonts.breeSerif(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                                       maxLines: 3,
                                       overflow: TextOverflow.ellipsis,
@@ -506,17 +506,44 @@ class _ParticipantTicketCardState extends ConsumerState<ParticipantTicketCard> {
     );
   }
 
-  String _getDateText(dynamic rawSlotInfo) {
+  String _getDateText(dynamic rawSlotInfo, Map<String, dynamic>? details) {
     final slotInfo = SlotInfo.tryParse(rawSlotInfo);
-    return slotInfo?.date ?? 'TBA';
+    if (slotInfo?.date != null) return slotInfo!.date!;
+    
+    // fallback
+    if (details != null) {
+      final startDt = details['start_datetime']?.toString() ?? details['date']?.toString();
+      if (startDt != null && startDt.isNotEmpty) {
+        try {
+          final parsed = DateTime.parse(startDt);
+          final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          return "${months[parsed.month - 1]} ${parsed.day}, ${parsed.year}";
+        } catch (_) {}
+      }
+    }
+    return 'TBA';
   }
 
-  String _getTimeText(dynamic rawSlotInfo) {
+  String _getTimeText(dynamic rawSlotInfo, Map<String, dynamic>? details) {
     final slotInfo = SlotInfo.tryParse(rawSlotInfo);
     if (slotInfo?.startTime != null && slotInfo?.endTime != null) {
       return '${formatTimeHHMM(slotInfo!.startTime)} - ${formatTimeHHMM(slotInfo.endTime)}';
     }
-    return 'General Slot';
+    // fallback
+    if (details != null) {
+      final startDt = details['start_datetime']?.toString() ?? details['date']?.toString();
+      if (startDt != null && startDt.isNotEmpty) {
+        try {
+          final parsed = DateTime.parse(startDt);
+          final hour = parsed.hour > 12 ? parsed.hour - 12 : (parsed.hour == 0 ? 12 : parsed.hour);
+          final period = parsed.hour >= 12 ? "PM" : "AM";
+          final minuteStr = parsed.minute.toString().padLeft(2, '0');
+          final hourStr = hour.toString().padLeft(2, '0');
+          return "$hourStr:$minuteStr $period";
+        } catch (_) {}
+      }
+    }
+    return 'TBA';
   }
 }
 
