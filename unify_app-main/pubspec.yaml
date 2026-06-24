@@ -49,6 +49,13 @@ dependencies:
   flutter_riverpod: ^2.5.0
   go_router: ^14.0.0
   google_sign_in: ^6.2.1
+<<<<<<< HEAD
+=======
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
+  shimmer: ^3.0.0
+  fl_chart: ^0.68.0
+>>>>>>> edccbf4 (Added Analytics, Organiser Assignment, Attendance Management)
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+<<<<<<< HEAD
 import '../../../../shared/widgets/r2_image_widget.dart';
+=======
+import '../../../../shared/widgets/app_cached_image.dart';
+import 'package:go_router/go_router.dart';
+>>>>>>> edccbf4 (Added Analytics, Organiser Assignment, Attendance Management)
 import 'manage_event_modals.dart';
 import 'manage_event_sub_modals.dart';
 
@@ -184,6 +189,7 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                           widget.event['id'],
                         ),
                       ),
+<<<<<<< HEAD
                       _buildActionButton(
                         Icons.rule,
                         'Constraints',
@@ -229,6 +235,61 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                           isDestructive: true,
                         ),
                       ],
+=======
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.groups_outlined,
+                              'Attendance',
+                              () => GoRouter.of(context).push('/event-attendance/${widget.event['id']}'),
+                              baseColor: const Color(0xFFFECF65),
+                            ),
+                          ),
+                          if (widget.isAdmin) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionButton(
+                                Icons.group_add_outlined,
+                                'Organiser',
+                                () => GoRouter.of(context).push('/organiser-assignment/${widget.event['id']}'),
+                                baseColor: const Color(0xFFF97316),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildActionButton(
+                              Icons.analytics_outlined,
+                              'Analytics',
+                              () => GoRouter.of(context).push('/event-analytics/${widget.event['id']}'),
+                              baseColor: const Color(0xFFFECF65),
+                            ),
+                          ),
+                          if (widget.isAdmin) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionButton(
+                                Icons.delete_outline,
+                                'Delete',
+                                () => ManageEventModals.showDeleteEventModal(
+                                  context,
+                                  ref,
+                                  widget.event['id'],
+                                  eventName,
+                                ),
+                                baseColor: const Color(0xFFEF4444),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+>>>>>>> edccbf4 (Added Analytics, Organiser Assignment, Attendance Management)
                     ],
                   ),
                 ],
@@ -291,7 +352,11 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
+<<<<<<< HEAD
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+=======
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+>>>>>>> edccbf4 (Added Analytics, Organiser Assignment, Attendance Management)
         decoration: BoxDecoration(
           color: baseColor.withOpacity(0.1),
           border: Border.all(color: baseColor.withOpacity(0.3)),
@@ -300,6 +365,7 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+<<<<<<< HEAD
             Icon(icon, size: 14, color: baseColor),
             const SizedBox(width: 6),
             Text(
@@ -308,6 +374,20 @@ class _ManageEventCardState extends ConsumerState<ManageEventCard>
                 color: baseColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
+=======
+            Icon(icon, size: 16, color: baseColor),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: baseColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+>>>>>>> edccbf4 (Added Analytics, Organiser Assignment, Attendance Management)
               ),
             ),
           ],

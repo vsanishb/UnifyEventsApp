@@ -15,11 +15,14 @@ import '../../features/bookings/presentation/pages/bookings_page.dart';
 import '../../features/bookings/presentation/pages/ticket_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/admin/presentation/pages/manage_events_page.dart';
+import '../../features/admin/presentation/pages/add_organisers_page.dart';
+import '../../features/admin/presentation/pages/organiser_assignment_page.dart';
 import '../../features/events/presentation/pages/event_detail_page.dart';
 import '../../features/cart/presentation/pages/checkout_page.dart';
 import '../../features/cart/presentation/pages/payment_page.dart';
 import '../../features/cart/presentation/pages/booking_success_page.dart';
 import '../../features/scan/presentation/scan_screen.dart';
+import '../../features/events/presentation/pages/event_analytics_page.dart';
 import '../../shared/layout/main_layout.dart';
 import 'router_notifier.dart';
 
@@ -125,6 +128,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/scan', builder: (context, state) => const ScanScreen()),
+      GoRoute(
+        path: '/event-analytics/:id',
+        builder: (context, state) {
+          return EventAnalyticsPage(eventId: state.pathParameters['id']!);
+        },
+      ),
+      GoRoute(
+        path: '/event-attendance/:id',
+        builder: (context, state) {
+          return EventAttendancePage(eventId: state.pathParameters['id']!);
+        },
+      ),
+      GoRoute(
+        path: '/booking-details/:bookedEventId',
+        builder: (context, state) {
+          return BookingDetailPage(
+            bookedEventId: int.parse(state.pathParameters['bookedEventId']!),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/add-organisers',
+        builder: (context, state) => const AddOrganisersPage(),
+      ),
+      GoRoute(
+        path: '/organiser-assignment/:id',
+        builder: (context, state) {
+          final eventId = state.pathParameters['id']!;
+          return OrganiserAssignmentPage(eventId: eventId);
+        },
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainLayout(navigationShell: navigationShell);
